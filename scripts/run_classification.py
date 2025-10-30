@@ -16,9 +16,11 @@ Hybrid classification pipeline:
 """
 
 import os
+import numpy as np
 import pandas as pd
 import yaml
 from tqdm import tqdm
+import json
 
 from src.models.embeddings import EmbeddingModel
 from src.models.classifier import RAClassifier
@@ -79,6 +81,117 @@ def main():
         return embedder, classifier
 
 
+    def _write_merged(ieee_df: pd.DataFrame, out_path: str):
+        """Merge processed rows into existing results while preserving previous rows.
+
+        Behavior:
+        - If out_path doesn't exist, write entire dataframe.
+        - If existing file has the key column (`Abstract_Cleaned`), update matching rows
+          and append new processed rows not already in the previous file.
+        - If existing file lacks the key, append processed rows and drop duplicates
+          by `Abstract_Cleaned` if available (keep previous rows).
+        """
+        try:
+            key = "Abstract_Cleaned"
+            cols_to_update = ["LLM_Returned_ID", "RA2025_Final_ID", "LLM_Reason", "Already_Classified"]
+
+            # Work on processed subset (rows that have been classified in this run)
+            processed = ieee_df[ieee_df.get("Already_Classified") == True].copy()
+
+            # If no processed rows, just leave prev as-is (or write ieee_df if no prev)
+            if not os.path.exists(out_path):
+                ieee_df.to_excel(out_path, index=False)
+                return
+
+            try:
+                prev = pd.read_excel(out_path)
+            except Exception:
+                # Can't read prev: write full current df
+                ieee_df.to_excel(out_path, index=False)
+                return
+
+            # If prev has the key column, perform index-based update + append
+            if key in prev.columns:
+                prev_idx = prev.set_index(key)
+                proc_idx = processed.set_index(key) if (not processed.empty and key in processed.columns) else processed
+
+                # ensure update columns exist with safe dtypes and update values by index
+                for c in cols_to_update:
+                    if c not in getattr(proc_idx, 'columns', []):
+                        continue
+
+                    # Create column in prev if missing with suitable dtype
+                    if c not in prev_idx.columns:
+                        if c == "Already_Classified":
+                            # pandas nullable boolean to allow NA
+                            prev_idx[c] = pd.Series([pd.NA] * len(prev_idx), index=prev_idx.index, dtype="boolean")
+                        else:
+                            prev_idx[c] = pd.Series([None] * len(prev_idx), index=prev_idx.index, dtype=object)
+
+                    # Ensure destination dtype compatible
+                    if c == "Already_Classified":
+                        if str(prev_idx[c].dtype) != "BooleanDtype":
+                            try:
+                                prev_idx[c] = prev_idx[c].astype("boolean")
+                            except Exception:
+                                # fallback to object if conversion fails
+                                prev_idx[c] = prev_idx[c].astype(object)
+                        incoming = pd.Series(proc_idx[c], copy=False)
+                        try:
+                            incoming = incoming.astype("boolean")
+                        except Exception:
+                            incoming = incoming.astype(object)
+                    else:
+                        # textual/object columns
+                        if not pd.api.types.is_object_dtype(prev_idx[c].dtype):
+                            try:
+                                prev_idx[c] = prev_idx[c].astype(object)
+                            except Exception:
+                                pass
+                        incoming = pd.Series(proc_idx[c], copy=False).astype(object)
+
+                    # assign only to common indices where incoming is not null
+                    common_idx = incoming.index.intersection(prev_idx.index)
+                    if len(common_idx) > 0:
+                        incoming_sub = incoming.loc[common_idx]
+                        notna_mask = incoming_sub.notna()
+                        if notna_mask.any():
+                            prev_idx.loc[common_idx[notna_mask.values], c] = incoming_sub[notna_mask].values
+                    # After (explicitly cast before assignment to keep dtype consistent):
+                    safe_update_column(prev_idx, proc_idx, c)
+
+                # Append any processed rows that are new (not present in prev)
+                try:
+                    new_idx = proc_idx.index.difference(prev_idx.index)
+                except Exception:
+                    new_idx = []
+
+                if len(new_idx) > 0:
+                    to_append = proc_idx.loc[new_idx]
+                    merged_idx = pd.concat([prev_idx, to_append], axis=0)
+                else:
+                    merged_idx = prev_idx
+
+                merged = merged_idx.reset_index()
+            else:
+                # prev doesn't have Abstract_Cleaned: preserve previous rows and append processed ones
+                try:
+                    merged = pd.concat([prev, processed], ignore_index=True)
+                    # if Abstract_Cleaned exists, drop duplicates keeping existing prev rows
+                    if "Abstract_Cleaned" in merged.columns:
+                        merged = merged.drop_duplicates(subset=["Abstract_Cleaned"], keep="first")
+                except Exception:
+                    merged = ieee_df
+
+            # final write
+            merged.to_excel(out_path, index=False)
+        except Exception:
+            try:
+                ieee_df.to_excel(out_path, index=False)
+            except Exception:
+                pass
+
+
     def classify_all(ieee_df: pd.DataFrame, ra_df: pd.DataFrame, reasoner: LLMReasoner, save_every: int):
         """Main loop: classify rows, update dataframe in-place, collect mismatches."""
         results = []
@@ -96,8 +209,8 @@ def main():
                 if ieee_df.at[paper_index, "Already_Classified"]:
                     continue
 
-                abstract = row["Abstract_Cleaned"]
-                candidates = row["Candidates"]
+                abstract = row.get("Abstract_Cleaned")
+                candidates = row.get("Candidates")
                 ra_id, reason = reasoner.classify_with_reasoning(abstract, candidates)
 
                 ra_id_str = str(ra_id) if ra_id is not None else None
@@ -192,7 +305,54 @@ def main():
     SAVE_EVERY = int(os.getenv("SAVE_EVERY", 50))
     results, mismatches = classify_all(ieee_df, ra_df, reasoner, SAVE_EVERY)
 
-    
+def safe_update_column(prev_df: pd.DataFrame, new_df: pd.DataFrame, col: str) -> None:
+    """
+    Safely update prev_df[col] with new_df[col], coercing/aligning dtypes to avoid
+    pandas FutureWarning about incompatible dtype assignment.
+
+    Rules:
+      - Float dest: coerce incoming to numeric, cast to dest float dtype, assign where not NA.
+      - Integer dest: upcast dest to float (to allow NaN), then handle as float.
+      - Boolean dest: coerce incoming to nullable boolean, assign where not NA.
+      - Object dest: assign incoming where not NA.
+    """
+    if col not in prev_df.columns or col not in new_df.columns:
+        return
+
+    # Align source to destination index
+    src = new_df[col].reindex(prev_df.index)
+    dest_dtype = prev_df[col].dtype
+
+    # If destination is integer and may need NaN, upcast to float
+    if pd.api.types.is_integer_dtype(dest_dtype):
+        # Prefer float to retain NaN semantics safely
+        prev_df[col] = pd.to_numeric(prev_df[col], errors='coerce').astype(float)
+        dest_dtype = prev_df[col].dtype  # refresh to float
+
+    # Float or numeric destination: coerce source to numeric and cast to dest dtype
+    if pd.api.types.is_float_dtype(dest_dtype):
+        numeric = pd.to_numeric(src, errors='coerce')
+        # Explicitly cast incoming to destination float dtype to satisfy pandas
+        numeric = numeric.astype(dest_dtype)
+        mask = numeric.notna()
+        if mask.any():
+            prev_df.loc[mask, col] = numeric[mask]
+        return
+
+    # Boolean destination (numpy bool_ or pandas nullable boolean)
+    if pd.api.types.is_bool_dtype(dest_dtype) or str(dest_dtype) == "BooleanDtype":
+        # Coerce to pandas nullable boolean to preserve NA
+        src_bool = src.astype("boolean")
+        mask = src_bool.notna()
+        if mask.any():
+            prev_df.loc[mask, col] = src_bool[mask]
+        return
+
+    # Object or other destination: assign as-is where not NA
+    mask = src.notna()
+    if mask.any():
+        prev_df.loc[mask, col] = src[mask]
+
 
 if __name__ == "__main__":
     main()
