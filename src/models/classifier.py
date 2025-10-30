@@ -47,15 +47,44 @@ class RAClassifier:
             cos_np = np.array(cos_scores)
             top_indices = cos_np.argsort()[::-1][:top_k]
 
+        # Detect optional programme columns once
+        primary_cols = [
+            "Primary Research Programme",
+            "Primary_Research_Programme",
+            "Primary Programme",
+            "Primary_Programme",
+        ]
+        secondary_cols = [
+            "Secondary Research Programme",
+            "Secondary_Research_Programme",
+            "Secondary Programme",
+            "Secondary_Programme",
+        ]
+
+        def _first_nonempty(row: pd.Series, cols: list):
+            for c in cols:
+                if c in row.index and pd.notna(row[c]) and str(row[c]).strip():
+                    return str(row[c]).strip()
+            return None
+
         candidates = []
         for idx in top_indices:
             idx_int = int(idx)
             sim_val = float(cos_scores[idx]) if not isinstance(cos_scores, (list, tuple)) else float(cos_scores[idx_int])
-            candidates.append({
-                "RA2025_ID": str(self.ra_df.iloc[idx_int]["RA2025"]),
-                "Question": self.ra_df.iloc[idx_int][self.text_column],
-                "Similarity": sim_val
-            })
+            row = self.ra_df.iloc[idx_int]
+            primary_prog = _first_nonempty(row, primary_cols)
+            secondary_prog = _first_nonempty(row, secondary_cols)
+            cand = {
+                "RA2025_ID": str(row["RA2025"]),
+                "Question": row[self.text_column],
+                "Similarity": sim_val,
+            }
+            # Attach programme context if available
+            if primary_prog is not None:
+                cand["Primary_Programme"] = primary_prog
+            if secondary_prog is not None:
+                cand["Secondary_Programme"] = secondary_prog
+            candidates.append(cand)
         return candidates
 
 

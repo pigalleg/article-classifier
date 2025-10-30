@@ -40,10 +40,19 @@ class LLMReasoner:
         if not abstract or not candidates:
             return None, "No data available"
 
-        # Format candidate list for readability
-        candidate_text = "\n".join([
-            f"- ID {c['RA2025_ID']}: {c['Question']}" for c in candidates
-        ])
+        # Format candidate list for readability, including programme context if available
+        lines = []
+        for c in candidates:
+            breakpoint()
+            primary = c.get("Primary_Programme")
+            secondary = c.get("Secondary_Programme")
+            prog_suffix = ""
+            if primary or secondary:
+                p = primary if primary else "-"
+                s = secondary if secondary else "-"
+                prog_suffix = f" [Primary: {p}; Secondary: {s}]"
+            lines.append(f"- ID {c['RA2025_ID']}{prog_suffix}: {c['Question']}")
+        candidate_text = "\n".join(lines)
 
         prompt = f"""
 You are classifying a power systems research paper into the most relevant
@@ -55,9 +64,13 @@ Abstract:
 Candidate RA2025 questions:
 {candidate_text}
 
+Important context:
+- Questions that share the same Primary or Secondary Research Programme are thematically related.
+- When candidates are very similar, prefer the one whose programme alignment best matches the abstract's themes.
+
 Task:
 1. Select the most relevant RA2025_ID from the list.
-2. Explain briefly (2–3 sentences) why this question matches the abstract.
+2. Explain briefly (2–3 sentences) why this question matches the abstract, optionally referencing programme alignment.
 Return your answer in strict JSON format:
 {{"RA2025_ID": "<selected ID>", "Reason": "<short explanation>"}}
 """

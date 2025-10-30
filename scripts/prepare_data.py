@@ -29,7 +29,15 @@ def main():
 
         # --- Clean RA questions ---
         print("🔹 Cleaning RA2025 questions...")
-        ra = ra[["RA2025", "Questions - long"]].dropna().reset_index(drop=True)
+        # Include programme columns if present
+        ra_cols = [
+            "RA2025",
+            "Questions - long",
+            "Primary Research Programme",
+            "Secondary Research Programme",
+        ]
+        available_cols = [c for c in ra_cols if c in ra.columns]
+        ra = ra[available_cols].dropna(subset=["RA2025", "Questions - long"]).reset_index(drop=True)
         ra["RA2025"] = ra["RA2025"].astype(str)
         ra["Question_Cleaned"] = ra["Questions - long"].apply(clean_text)
 
@@ -49,6 +57,3 @@ def main():
 
 if __name__ == "__main__":
         main()
-
-if __name__ == '__main__':
-    print('Prepare data (stub)')
