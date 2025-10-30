@@ -1,0 +1,9 @@
+pandas
+openpyxl
+sentence-transformers
+torch
+openai
+tqdm
+matplotlib
+seaborn
+pyyaml

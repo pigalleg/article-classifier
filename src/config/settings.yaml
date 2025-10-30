@@ -1,0 +1,12 @@
+# Settings for project paths, models, thresholds
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  results: data/results
+models:
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  llm:
+    model: gpt-4o-mini
+    requests_per_minute: 3
+thresholds:
+  match_score: 0.5
