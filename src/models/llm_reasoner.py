@@ -35,23 +35,27 @@ class LLMReasoner:
         """
         Given an abstract and a list of top-k candidate RA questions,
         ask the LLM to select the most appropriate one.
-        Returns (RA2025_ID, reasoning explanation).
+        Returns (RA2025_ID, reasoning explanation, confidence).
         """
         if not abstract or not candidates:
-            return None, "No data available"
+            return None, "No data available", None
 
         # Format candidate list for readability, including programme context if available
         lines = []
         for c in candidates:
-            breakpoint()
-            primary = c.get("Primary_Programme")
-            secondary = c.get("Secondary_Programme")
+            # support several possible keys from different upstreams
+            ra_id = c.get("RA2025_ID") or c.get("RA2025") or c.get("RA2025_id") or c.get("id")
+            question = c.get("Question") or c.get("Question_Cleaned") or c.get("Questions - long") or c.get("question") or ""
+            primary = c.get("Primary_Programme") or c.get("Predicted_Primary_Programme")
+            secondary = c.get("Secondary_Programme") or c.get("Predicted_Secondary_Programme")
             prog_suffix = ""
             if primary or secondary:
                 p = primary if primary else "-"
                 s = secondary if secondary else "-"
                 prog_suffix = f" [Primary: {p}; Secondary: {s}]"
-            lines.append(f"- ID {c['RA2025_ID']}{prog_suffix}: {c['Question']}")
+            id_label = str(ra_id) if ra_id is not None else "-"
+            lines.append(f"- ID {id_label}{prog_suffix}: {question}")
+
         candidate_text = "\n".join(lines)
 
         prompt = f"""
@@ -71,8 +75,9 @@ Important context:
 Task:
 1. Select the most relevant RA2025_ID from the list.
 2. Explain briefly (2–3 sentences) why this question matches the abstract, optionally referencing programme alignment.
+3. Provide a Confidence score in [0, 1] for how well the abstract matches the selected question.
 Return your answer in strict JSON format:
-{{"RA2025_ID": "<selected ID>", "Reason": "<short explanation>"}}
+{{"RA2025_ID": "<selected ID>", "Reason": "<short explanation>", "Confidence": <number between 0 and 1>}}
 """
 
         # Retry logic for timeouts or API errors
@@ -96,7 +101,12 @@ Return your answer in strict JSON format:
                 # record last request time after successful call
                 self._last_request_time = time.time()
 
-                reply = response.choices[0].message.content.strip()
+                # Extract reply text depending on SDK shape
+                try:
+                    reply = response.choices[0].message.content.strip()
+                except Exception:
+                    # fallback for other response shapes
+                    reply = str(response)
 
                 # Try to extract the JSON object from the reply. Many LLMs
                 # wrap JSON in markdown fences or add commentary, so we
@@ -126,24 +136,35 @@ Return your answer in strict JSON format:
                 except json.JSONDecodeError:
                     # If parsing still fails, return a helpful message including
                     # the raw reply so the user can inspect the exact output.
-                    return None, f"⚠️ Could not parse LLM output: {reply}"
+                    return None, f"⚠️ Could not parse LLM output: {reply}", None
 
                 # Normalize RA2025_ID if the model returned a label like "ID 38"
-                ra_id = data.get("RA2025_ID")
+                ra_id = data.get("RA2025_ID") or data.get("RA2025") or data.get("id")
                 if isinstance(ra_id, str):
                     m2 = re.search(r"(\d+)", ra_id)
                     if m2:
                         ra_id = m2.group(1)
 
-                return ra_id, data.get("Reason")
+                # Confidence parsing (optional); clamp to [0,1]
+                conf = data.get("Confidence")
+                try:
+                    conf = float(conf)
+                except Exception:
+                    conf = None
+                if conf is not None:
+                    if conf < 0:
+                        conf = 0.0
+                    elif conf > 1:
+                        conf = 1.0
 
-            # 👇 Here’s where your snippet goes
+                return ra_id, data.get("Reason"), conf
+
             except Exception as e:
                 if "insufficient_quota" in str(e):
-                    return None, "[Quota exceeded — please add billing or wait for reset]"
+                    return None, "[Quota exceeded — please add billing or wait for reset]", None
                 else:
                     print(f"⚠️ Attempt {attempt}/{self.max_retries} failed: {e}")
                     if attempt < self.max_retries:
                         time.sleep(5 * attempt)  # exponential backoff
                     else:
-                        return None, f"[Error calling LLM: {e}]"
+                        return None, f"[Error calling LLM: {e}]", None

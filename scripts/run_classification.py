@@ -71,6 +71,40 @@ def main():
             except Exception:
                 pass
 
+        # New metrics/flags columns
+        metrics_float_cols = [
+            "Top_Cosine_Sim",
+            "LLM_Confidence",
+            "Combined_Confidence",
+        ]
+        for col in metrics_float_cols:
+            if col not in ieee_df.columns:
+                ieee_df[col] = np.nan
+            try:
+                ieee_df[col] = pd.to_numeric(ieee_df[col], errors="coerce").astype(float)
+            except Exception:
+                pass
+
+        prog_cols = [
+            "Predicted_Primary_Programme",
+            "Predicted_Secondary_Programme",
+        ]
+        for col in prog_cols:
+            if col not in ieee_df.columns:
+                ieee_df[col] = None
+            try:
+                ieee_df[col] = ieee_df[col].astype(object)
+            except Exception:
+                pass
+
+        if "Low_Confidence_Flag" not in ieee_df.columns:
+            ieee_df["Low_Confidence_Flag"] = False
+        else:
+            try:
+                ieee_df["Low_Confidence_Flag"] = ieee_df["Low_Confidence_Flag"].astype(bool)
+            except Exception:
+                pass
+
         return ieee_df
 
 
@@ -115,50 +149,10 @@ def main():
                 prev_idx = prev.set_index(key)
                 proc_idx = processed.set_index(key) if (not processed.empty and key in processed.columns) else processed
 
-                # ensure update columns exist with safe dtypes and update values by index
+                # ensure update columns exist and update via dtype-safe helper
                 for c in cols_to_update:
-                    if c not in getattr(proc_idx, 'columns', []):
-                        continue
-
-                    # Create column in prev if missing with suitable dtype
-                    if c not in prev_idx.columns:
-                        if c == "Already_Classified":
-                            # pandas nullable boolean to allow NA
-                            prev_idx[c] = pd.Series([pd.NA] * len(prev_idx), index=prev_idx.index, dtype="boolean")
-                        else:
-                            prev_idx[c] = pd.Series([None] * len(prev_idx), index=prev_idx.index, dtype=object)
-
-                    # Ensure destination dtype compatible
-                    if c == "Already_Classified":
-                        if str(prev_idx[c].dtype) != "BooleanDtype":
-                            try:
-                                prev_idx[c] = prev_idx[c].astype("boolean")
-                            except Exception:
-                                # fallback to object if conversion fails
-                                prev_idx[c] = prev_idx[c].astype(object)
-                        incoming = pd.Series(proc_idx[c], copy=False)
-                        try:
-                            incoming = incoming.astype("boolean")
-                        except Exception:
-                            incoming = incoming.astype(object)
-                    else:
-                        # textual/object columns
-                        if not pd.api.types.is_object_dtype(prev_idx[c].dtype):
-                            try:
-                                prev_idx[c] = prev_idx[c].astype(object)
-                            except Exception:
-                                pass
-                        incoming = pd.Series(proc_idx[c], copy=False).astype(object)
-
-                    # assign only to common indices where incoming is not null
-                    common_idx = incoming.index.intersection(prev_idx.index)
-                    if len(common_idx) > 0:
-                        incoming_sub = incoming.loc[common_idx]
-                        notna_mask = incoming_sub.notna()
-                        if notna_mask.any():
-                            prev_idx.loc[common_idx[notna_mask.values], c] = incoming_sub[notna_mask].values
-                    # After (explicitly cast before assignment to keep dtype consistent):
-                    safe_update_column(prev_idx, proc_idx, c)
+                    if c in getattr(proc_idx, 'columns', []):
+                        safe_update_column(prev_idx, proc_idx, c)
 
                 # Append any processed rows that are new (not present in prev)
                 try:
@@ -210,8 +204,34 @@ def main():
                     continue
 
                 abstract = row.get("Abstract_Cleaned")
-                candidates = row.get("Candidates")
-                ra_id, reason = reasoner.classify_with_reasoning(abstract, candidates)
+                candidates = row.get("Candidates") or []
+
+                # Top cosine similarity (normalized to [0,1]) and programmes from best candidate
+                top_sim = None
+                pred_primary = None
+                pred_secondary = None
+                if isinstance(candidates, list) and len(candidates) > 0:
+                    try:
+                        top_sim = float(candidates[0].get("Similarity", np.nan))
+                    except Exception:
+                        top_sim = None
+                    pred_primary = candidates[0].get("Primary_Programme")
+                    pred_secondary = candidates[0].get("Secondary_Programme")
+
+                # Normalize cosine to [0,1]
+                top_sim_norm = None
+                if top_sim is not None and not np.isnan(top_sim):
+                    top_sim_norm = (top_sim + 1.0) / 2.0
+                    top_sim_norm = float(np.clip(top_sim_norm, 0.0, 1.0))
+
+                res = reasoner.classify_with_reasoning(abstract, candidates)
+                if isinstance(res, tuple) and len(res) == 3:
+                    ra_id, reason, llm_conf = res
+                elif isinstance(res, tuple) and len(res) == 2:
+                    ra_id, reason = res
+                    llm_conf = None
+                else:
+                    ra_id, reason, llm_conf = None, str(res), None
 
                 ra_id_str = str(ra_id) if ra_id is not None else None
                 exists = ra_id_str in valid_ra_ids if ra_id_str is not None else False
@@ -226,13 +246,27 @@ def main():
                         "candidates": json.dumps(candidates)
                     })
 
+                # Combined confidence: average of available components
+                parts = [p for p in [top_sim_norm, llm_conf] if p is not None and not (isinstance(p, float) and np.isnan(p))]
+                combined_conf = float(np.mean(parts)) if parts else np.nan
+                threshold = float(os.getenv("CONFIDENCE_THRESHOLD", "0.4"))
+                low_conf = False
+                if parts and combined_conf < threshold:
+                    low_conf = True
+
                 # update row in-place
                 ieee_df.at[paper_index, "LLM_Returned_ID"] = ra_id_str
-                ieee_df.at[paper_index, "RA2025_Final_ID"] = ra_id_str if exists else None
+                ieee_df.at[paper_index, "RA2025_Final_ID"] = None if (not exists or low_conf) else ra_id_str
                 ieee_df.at[paper_index, "LLM_Reason"] = reason
                 ieee_df.at[paper_index, "Already_Classified"] = True
+                ieee_df.at[paper_index, "Top_Cosine_Sim"] = top_sim
+                ieee_df.at[paper_index, "LLM_Confidence"] = llm_conf
+                ieee_df.at[paper_index, "Combined_Confidence"] = combined_conf
+                ieee_df.at[paper_index, "Predicted_Primary_Programme"] = pred_primary
+                ieee_df.at[paper_index, "Predicted_Secondary_Programme"] = pred_secondary
+                ieee_df.at[paper_index, "Low_Confidence_Flag"] = bool(low_conf)
 
-                results.append((ra_id_str, ra_id_str if exists else None, reason))
+                results.append((ra_id_str, None if (not exists or low_conf) else ra_id_str, reason, combined_conf))
 
                 # periodic flush
                 if (i + 1) % save_every == 0:
