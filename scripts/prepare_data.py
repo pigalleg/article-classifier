@@ -41,6 +41,35 @@ def main():
         ra["RA2025"] = ra["RA2025"].astype(str)
         ra["Question_Cleaned"] = ra["Questions - long"].apply(clean_text)
 
+        # --- Clean Primary Research Programme sheet (if present) ---
+        try:
+            pri_raw = pd.read_excel(os.path.join(RAW_DIR, "Research Agenda 2025.xlsx"), sheet_name="Primary Research Programme")
+            pri_cols = ["Primary Research Programme", "Long name", "Description"]
+            pri_available = [c for c in pri_cols if c in pri_raw.columns]
+            pri = pri_raw[pri_available].dropna(subset=["Primary Research Programme"]).reset_index(drop=True)
+
+            # Normalize column names
+            rename_map = {}
+            if "Primary Research Programme" in pri.columns:
+                rename_map["Primary Research Programme"] = "Primary_Programme"
+            if "Long name" in pri.columns:
+                rename_map["Long name"] = "Long_Name"
+            if "Description" in pri.columns:
+                rename_map["Description"] = "Description"
+            pri = pri.rename(columns=rename_map)
+
+            # Clean textual description if present
+            if "Description" in pri.columns:
+                pri["Description_Cleaned"] = pri["Description"].astype(str).apply(clean_text)
+
+            # Persist processed primary programmes
+            pri_out = os.path.join(PROCESSED_DIR, "primary_programmes.csv")
+            pri.to_csv(pri_out, index=False)
+            print(f"✅ Cleaned Primary Research Programme saved to {pri_out}")
+        except Exception:
+            # Best-effort: if the sheet is missing or parsing fails, continue without failing the script
+            pass
+
         # --- Save outputs ---
         ieee_out = os.path.join(PROCESSED_DIR, "abstracts_cleaned.csv")
         ra_out = os.path.join(PROCESSED_DIR, "ra_questions_cleaned.csv")
