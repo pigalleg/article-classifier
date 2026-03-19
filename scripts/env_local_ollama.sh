@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
+# set -euo pipefail
 # Usage: source scripts/env_local_ollama.sh
-
 # Force-set local (Ollama) config
 export OPENAI_BASE_URL="http://localhost:11434/v1"
 export OPENAI_API_KEY="ollama"

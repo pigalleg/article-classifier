@@ -1,4 +1,5 @@
 pandas
+numpy
 openpyxl
 sentence-transformers
 torch
@@ -7,3 +8,4 @@ tqdm
 matplotlib
 seaborn
 pyyaml
+pytest

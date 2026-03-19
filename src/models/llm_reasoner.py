@@ -7,6 +7,7 @@ from openai import OpenAI
 import json
 import time
 import re
+import os
 
 class LLMReasoner:
     """Uses an LLM (GPT) to select the best RA question among candidates.
@@ -15,21 +16,51 @@ class LLMReasoner:
     (requests per minute).
     """
 
-    def __init__(self, model="gpt-5", temperature=0.3, max_retries=3, timeout=60, requests_per_minute: int = 3):
-        # Configure client with a timeout
-        self.client = OpenAI(timeout=timeout)
-        self.model = model
+    def __init__(self, model="gpt-5", temperature=0.3, max_retries=3, timeout=60,
+                 requests_per_minute=None, base_url=None, api_key=None):
+        """
+        If OPENAI_BASE_URL is set, connect to a local/OpenAI-compatible server (e.g., Ollama).
+        Otherwise, use OpenAI cloud. API key is read from env if not provided.
+        RPM: if not provided, use OPENAI_REQUESTS_PER_MINUTE; default higher for local.
+        """
+        # Resolve endpoint and credentials
+        base_url = base_url or os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL")
+        api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY")
+
+        # Build client (OpenAI SDK is compatible with base_url + api_key)
+        if base_url:
+            self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+        else:
+            self.client = OpenAI(api_key=api_key, timeout=timeout)
+
+        # Model and runtime params
+        self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
         self.temperature = temperature
         self.max_retries = max_retries
 
         # Rate limiting (requests per minute)
+        rpm_env = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
         try:
-            rpm = int(requests_per_minute)
+            rpm_val = int(requests_per_minute if requests_per_minute is not None else (rpm_env if rpm_env is not None else (9999 if base_url else 3)))
         except Exception:
-            rpm = 3
-        self.requests_per_minute = max(0, rpm)
+            rpm_val = 9999 if base_url else 3
+        self.requests_per_minute = max(0, rpm_val)
         self._min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute > 0 else 0.0
         self._last_request_time = 0.0
+
+    @staticmethod
+    def _is_model_unavailable_error(err: Exception) -> bool:
+        """Best-effort detection for unavailable/unknown model errors."""
+        msg = str(err).lower()
+        model_markers = [
+            "model",
+            "not found",
+            "does not exist",
+            "unknown model",
+            "invalid model",
+            "no such model",
+        ]
+        return any(token in msg for token in model_markers)
 
     def classify_with_reasoning(self, abstract, candidates):
         """
@@ -168,3 +199,88 @@ Return your answer in strict JSON format:
                         time.sleep(5 * attempt)  # exponential backoff
                     else:
                         return None, f"[Error calling LLM: {e}]", None
+
+    def rate_affinity(self, abstract: str, target_text: str, target_type: str = "RA"):
+        """
+        Return a numeric affinity (0–100) for the pair (abstract, target_text).
+        target_type: "RA" or "PRP" (chooses prompt wording).
+        Deterministic (temperature=0) and robust numeric parsing with retries and client-side rate limiting.
+        """
+        if not abstract or not target_text:
+            return None
+
+        if target_type == "PRP":
+            prompt = (
+                "You are evaluating how strongly a research abstract relates to a Primary Research Programme.\n"
+                "The programme is described below.\n"
+                "Rate the degree of relation on a scale from 0 to 100 (100 = totally related, 0 = not related at all).\n"
+                "Return only the number.\n\n"
+                f"Abstract:\n{abstract}\n\n"
+                f"Primary Research Programme:\n{target_text}\n"
+            )
+        else:
+            prompt = (
+                "You are evaluating how strongly a research abstract relates to a Research Agenda 2025 question.\n"
+                "Rate the degree of relation on a scale from 0 to 100 (100 = totally related, 0 = not related at all).\n"
+                "Return only the number.\n\n"
+                f"Abstract:\n{abstract}\n\n"
+                f"Research Agenda Question:\n{target_text}\n"
+            )
+
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                # rate limit
+                if self._min_interval > 0:
+                    elapsed = time.time() - self._last_request_time
+                    if elapsed < self._min_interval:
+                        to_sleep = self._min_interval - elapsed
+                        if to_sleep > 0:
+                            time.sleep(to_sleep)
+
+                resp = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.0,
+                )
+                self._last_request_time = time.time()
+
+                try:
+                    reply = resp.choices[0].message.content.strip()
+                except Exception:
+                    reply = str(resp)
+
+                if os.getenv("AFFINITY_DEBUG") == "1":
+                    print(f"[rate_affinity] raw reply: {reply}")
+
+                # extract first number and clamp to [0,100]
+                m = re.search(r"(-?\d+(\.\d+)?)", reply)
+                if not m:
+                    # try stripping code fences then search again
+                    mf = re.search(r"```(?:json)?\s*(.*?)\s*```", reply, re.DOTALL | re.IGNORECASE)
+                    content = mf.group(1) if mf else reply
+                    m = re.search(r"(-?\d+(\.\d+)?)", content)
+
+                if not m:
+                    return None
+
+                val = float(m.group(1))
+                if val < 0:
+                    val = 0.0
+                if val > 100:
+                    val = 100.0
+                return float(val)
+
+            except Exception as e:
+                if self._is_model_unavailable_error(e):
+                    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL") or "<openai-cloud>"
+                    raise RuntimeError(
+                        f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
+                        "Set OPENAI_MODEL to an available model for this backend or switch endpoint. "
+                        f"Original error: {e}"
+                    ) from e
+                if os.getenv("AFFINITY_DEBUG") == "1":
+                    print(f"[rate_affinity] attempt {attempt} failed: {e}")
+                if attempt < self.max_retries:
+                    time.sleep(2 * attempt)
+                else:
+                    return None

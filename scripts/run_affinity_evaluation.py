@@ -101,6 +101,29 @@ def init_models(ra_df: pd.DataFrame) -> tuple[EmbeddingModel, RAClassifier, LLMR
     return embedder, classifier, reasoner
 
 
+def preflight_llm_affinity(reasoner: LLMReasoner) -> None:
+    """Fail fast if the configured model/backend cannot produce affinity outputs."""
+    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL") or "<openai-cloud>"
+    try:
+        # Reuse the exact affinity path used in the main loop.
+        val = reasoner.rate_affinity(
+            abstract="Power systems planning with renewable integration and voltage stability.",
+            target_text="Assess grid flexibility and reliability under high renewable penetration.",
+            target_type="RA",
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"LLM preflight failed for model '{reasoner.model}' on endpoint '{base_url}'. {e}"
+        ) from e
+
+    if val is None:
+        raise RuntimeError(
+            "LLM preflight returned no numeric affinity (None). "
+            f"Model='{reasoner.model}', endpoint='{base_url}'. "
+            "Set AFFINITY_DEBUG=1 to inspect raw replies, and verify model availability on the selected backend."
+        )
+
+
 def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_idx: Any,
                                       classifier: RAClassifier, reasoner: LLMReasoner, top_k: int) -> List[Dict[str, Any]]:
     records = []
@@ -151,6 +174,7 @@ def main():
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
     _, classifier, reasoner = init_models(ra)
+    preflight_llm_affinity(reasoner)
 
     ra_rows: List[Dict[str, Any]] = []
     prp_rows: List[Dict[str, Any]] = []
@@ -174,7 +198,6 @@ def main():
         prp_rows.extend(
             evaluate_prp_affinity_for_abstract(abstract_text, doc_title, src_idx, prp, prp_name_col, prp_desc_col, reasoner)
         )
-
         if (i + 1) % SAVE_EVERY == 0:
             pd.DataFrame(ra_rows).to_csv(Path(RESULTS_DIR) / "ra_affinities.csv", index=False)
             pd.DataFrame(prp_rows).to_csv(Path(RESULTS_DIR) / "prp_affinities.csv", index=False)

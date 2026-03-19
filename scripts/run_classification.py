@@ -13,6 +13,10 @@ Hybrid classification pipeline:
 1. Use cosine similarity to retrieve top-k RA2025 candidate questions.
 2. Use LLM agent to reason among candidates and pick the best match.
 3. Save classification results with explanations.
+
+Outputs:
+- data/results/classified_articles_llm.xlsx
+- data/results/llm_mismatches.csv
 """
 
 import os
@@ -38,7 +42,7 @@ def main():
     def load_config(cfg_path: str):
         """Read LLM config from YAML and allow environment overrides."""
         model = os.getenv("OPENAI_MODEL")
-        rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE")
+        rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
         try:
             with open(cfg_path, "r") as fh:
                 cfg = yaml.safe_load(fh) or {}
@@ -334,6 +338,7 @@ def main():
 
     print("🔹 Running LLM reasoning for final classification...")
     llm_model, rpm = load_config(CFG_PATH)
+    
     reasoner = LLMReasoner(model=llm_model, requests_per_minute=rpm)
 
     SAVE_EVERY = int(os.getenv("SAVE_EVERY", 50))
