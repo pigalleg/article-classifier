@@ -6,7 +6,9 @@ Project to classify IEEE abstracts against Research Agenda (RA) questions using 
 
 These scripts use relative paths like `data/processed` and imports from `src`. If your terminal is in `scripts/`, run them through a subshell that changes to the repository root.
 
-### 1) Setup
+### Setup Instructions
+
+#### Linux / macOS
 
 From the repository root:
 
@@ -16,14 +18,52 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2) Enter scripts folder
+Then navigate to the scripts folder and run steps 3-4 below.
 
+#### Windows (Command Prompt)
+
+From the repository root:
+
+```cmd
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Then navigate to the scripts folder and run steps 3-4 below.
+
+#### Windows (PowerShell)
+
+From the repository root:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Then navigate to the scripts folder and run steps 3-4 below.
+
+### 3) Enter scripts folder
+
+**Linux / macOS:**
 ```bash
 cd scripts
 ```
 
-### 3) Optional: choose LLM backend
+**Windows (Command Prompt):**
+```cmd
+cd scripts
+```
 
+**Windows (PowerShell):**
+```powershell
+cd scripts
+```
+
+### 4) Optional: choose LLM backend
+
+**Linux / macOS:**
 ```bash
 source env_cloud.sh
 # or
@@ -32,14 +72,42 @@ source env_local_ollama.sh
 source env_google_ai_studio.sh
 ```
 
-### 4) Run each pipeline step (while staying in scripts/)
+**Windows (Command Prompt or PowerShell):**
+```cmd
+env_cloud.bat
+REM or
+env_local_ollama.bat
+REM or
+env_google_ai_studio.bat
+```
 
+### 5) Run each pipeline step (while staying in scripts/)
+
+**Linux / macOS:**
 ```bash
 (cd .. && python scripts/prepare_data.py)
 (cd .. && python scripts/run_classification.py)
 (cd .. && python scripts/run_affinity_evaluation.py)
 (cd .. && python scripts/run_postprocessing.py)
 (cd .. && python scripts/run_keyword_clustering.py)
+```
+
+**Windows (Command Prompt):**
+```cmd
+cd .. && python scripts/prepare_data.py && cd scripts
+cd .. && python scripts/run_classification.py && cd scripts
+cd .. && python scripts/run_affinity_evaluation.py && cd scripts
+cd .. && python scripts/run_postprocessing.py && cd scripts
+cd .. && python scripts/run_keyword_clustering.py && cd scripts
+```
+
+**Windows (PowerShell):**
+```powershell
+& python ..\scripts\prepare_data.py
+& python ..\scripts\run_classification.py
+& python ..\scripts\run_affinity_evaluation.py
+& python ..\scripts\run_postprocessing.py
+& python ..\scripts\run_keyword_clustering.py
 ```
 
 ## Script Outputs
