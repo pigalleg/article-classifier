@@ -13,13 +13,97 @@ class RAClassifier:
         self.embedder = embedder
         self.ra_df = ra_df
         self.text_column = text_column
+        self.primary_cols = [
+            "Primary Research Programme",
+            "Primary_Research_Programme",
+            "Primary Programme",
+            "Primary_Programme",
+        ]
+        self.secondary_cols = [
+            "Secondary Research Programme",
+            "Secondary_Research_Programme",
+            "Secondary Programme",
+            "Secondary_Programme",
+        ]
         print("🔸 Building RA2025 question embeddings...")
         self.ra_embeddings = embedder.embed_texts(ra_df[text_column].tolist())
 
-    def get_top_k_candidates(self, abstract: str, top_k: int = 5):
-        """Return top-k RA question candidates with similarity scores."""
+    @staticmethod
+    def _first_nonempty(row: pd.Series, cols: list):
+        for c in cols:
+            if c in row.index and pd.notna(row[c]) and str(row[c]).strip():
+                return str(row[c]).strip()
+        return None
+
+    def _programme_filtered_indices(self, top_programmes: list[str] | None) -> list[int]:
+        if not top_programmes:
+            return []
+        wanted = {str(p).strip().lower() for p in top_programmes if str(p).strip()}
+        if not wanted:
+            return []
+
+        matched: list[int] = []
+        for idx in range(len(self.ra_df)):
+            row = self.ra_df.iloc[idx]
+            primary = self._first_nonempty(row, self.primary_cols)
+            secondary = self._first_nonempty(row, self.secondary_cols)
+            values = {str(v).strip().lower() for v in [primary, secondary] if v is not None}
+            if values & wanted:
+                matched.append(idx)
+        return matched
+
+    def _build_candidates(self, indices: list[int], cos_scores):
+        candidates = []
+        for idx_int in indices:
+            row = self.ra_df.iloc[idx_int]
+            primary_prog = self._first_nonempty(row, self.primary_cols)
+            secondary_prog = self._first_nonempty(row, self.secondary_cols)
+
+            sim_val = np.nan
+            if cos_scores is not None:
+                try:
+                    sim_val = float(cos_scores[idx_int])
+                except Exception:
+                    sim_val = float(np.array(cos_scores)[idx_int])
+
+            cand = {
+                "RA2025_ID": str(row["RA2025"]),
+                "Question": row[self.text_column],
+                "Similarity": sim_val,
+            }
+            if primary_prog is not None:
+                cand["Primary_Programme"] = primary_prog
+            if secondary_prog is not None:
+                cand["Secondary_Programme"] = secondary_prog
+            candidates.append(cand)
+        return candidates
+
+    def get_top_k_candidates(
+        self,
+        abstract: str,
+        top_k: int = 5,
+        retrieval_mode: str = "cosine",
+        top_programmes: list[str] | None = None,
+    ):
+        """Return top-k RA candidates.
+
+        retrieval_mode:
+        - cosine: rank globally by cosine similarity
+        - prp_filter: filter by top_programmes then rank by cosine within subset
+        - prp_only: return first top_k rows in programme-filtered subset (no cosine ranking)
+        """
         if not isinstance(abstract, str) or not abstract.strip():
             return []
+
+        mode = str(retrieval_mode or "cosine").strip().lower()
+        if mode not in {"cosine", "prp_filter", "prp_only"}:
+            raise ValueError(f"Unsupported retrieval_mode: {retrieval_mode}")
+
+        filtered_indices = self._programme_filtered_indices(top_programmes)
+        if mode == "prp_only":
+            if not filtered_indices:
+                return []
+            return self._build_candidates(filtered_indices[:top_k], cos_scores=None)
 
         abs_emb = self.embedder.embed_texts([abstract])
         cos_scores = None
@@ -39,53 +123,15 @@ class RAClassifier:
                 denom = np.linalg.norm(ra_embs, axis=1) * (np.linalg.norm(q) + 1e-12)
                 cos_scores = (ra_embs @ q) / denom
 
-        # Ensure cos_scores is a numpy array or supports indexing
-        try:
-            # torch tensor has argsort with descending
-            top_indices = cos_scores.argsort(descending=True)[:top_k]
-        except Exception:
-            cos_np = np.array(cos_scores)
-            top_indices = cos_np.argsort()[::-1][:top_k]
+        cos_np = np.array(cos_scores)
+        if mode == "prp_filter":
+            if not filtered_indices:
+                return []
+            ranked = sorted(filtered_indices, key=lambda i: float(cos_np[i]), reverse=True)
+            return self._build_candidates(ranked[:top_k], cos_scores=cos_np)
 
-        # Detect optional programme columns once
-        primary_cols = [
-            "Primary Research Programme",
-            "Primary_Research_Programme",
-            "Primary Programme",
-            "Primary_Programme",
-        ]
-        secondary_cols = [
-            "Secondary Research Programme",
-            "Secondary_Research_Programme",
-            "Secondary Programme",
-            "Secondary_Programme",
-        ]
-
-        def _first_nonempty(row: pd.Series, cols: list):
-            for c in cols:
-                if c in row.index and pd.notna(row[c]) and str(row[c]).strip():
-                    return str(row[c]).strip()
-            return None
-
-        candidates = []
-        for idx in top_indices:
-            idx_int = int(idx)
-            sim_val = float(cos_scores[idx]) if not isinstance(cos_scores, (list, tuple)) else float(cos_scores[idx_int])
-            row = self.ra_df.iloc[idx_int]
-            primary_prog = _first_nonempty(row, primary_cols)
-            secondary_prog = _first_nonempty(row, secondary_cols)
-            cand = {
-                "RA2025_ID": str(row["RA2025"]),
-                "Question": row[self.text_column],
-                "Similarity": sim_val,
-            }
-            # Attach programme context if available
-            if primary_prog is not None:
-                cand["Primary_Programme"] = primary_prog
-            if secondary_prog is not None:
-                cand["Secondary_Programme"] = secondary_prog
-            candidates.append(cand)
-        return candidates
+        ranked = cos_np.argsort()[::-1][:top_k]
+        return self._build_candidates([int(i) for i in ranked], cos_scores=cos_np)
 
 
 def match_abstract_to_ras(abstract: str, ra_texts: list):

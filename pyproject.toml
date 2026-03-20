@@ -45,11 +45,12 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*", "scripts*"]
+include = ["src*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+pythonpath = [".", "src"]
 addopts = "-v --strict-markers"
 
 [tool.setuptools.package-data]

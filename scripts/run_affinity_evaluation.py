@@ -7,9 +7,23 @@ Outputs:
 - data/results/prp_affinities.csv
 - data/results/combined_affinities.xlsx
 """
+# How to run the new workflow
+#
+# Run PRP stage only
+# python run_affinity_evaluation.py --mode prp
+#
+# Run RA stage only with PRP filtering
+# python run_affinity_evaluation.py --mode ra --ra-retrieval-mode prp_filter --prp-input prp_affinities.csv --prp-top-n 2
+#
+# Run RA stage only with strict PRP-only selection
+# python run_affinity_evaluation.py --mode ra --ra-retrieval-mode prp_only --prp-input prp_affinities.csv --prp-top-n 2
+#
+# Run old combined behavior
+# python run_affinity_evaluation.py --mode both --ra-retrieval-mode cosine
+import argparse
 import os
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import pandas as pd
 import numpy as np
@@ -30,6 +44,40 @@ LLM_MODEL = os.getenv("AFFINITY_LLM_MODEL", "gpt-4o-mini")
 TOP_K = int(os.getenv("AFFINITY_TOP_K", "5"))
 SAVE_EVERY = int(os.getenv("SAVE_EVERY", "50"))
 CFG_PATH = os.path.join("src", "config", "settings.yaml")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run PRP and/or RA affinity evaluation")
+    parser.add_argument(
+        "--mode",
+        choices=["both", "prp", "ra"],
+        default="both",
+        help="Run PRP only, RA only, or both (default: both)",
+    )
+    parser.add_argument(
+        "--ra-retrieval-mode",
+        choices=["cosine", "prp_filter", "prp_only"],
+        default="prp_only",
+        help="RA candidate retrieval strategy (default: cosine)",
+    )
+    parser.add_argument(
+        "--prp-input",
+        default=os.path.join(RESULTS_DIR, "prp_affinities.csv"),
+        help="Path to PRP affinity CSV used by prp_filter/prp_only",
+    )
+    parser.add_argument(
+        "--prp-top-n",
+        type=int,
+        default=2,
+        help="Number of top PRPs per abstract to use for routing (default: 2)",
+    )
+    parser.add_argument(
+        "--prp-min-affinity",
+        type=float,
+        default=None,
+        help="Optional minimum PRP affinity threshold for routing",
+    )
+    return parser.parse_args()
 
 
 def load_config(cfg_path: str):
@@ -54,7 +102,7 @@ def load_config(cfg_path: str):
     return model or "gpt-4o-mini", rpm
 
 
-def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, str]:
+def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Optional[str]]:
     abs_path = Path(DATA_DIR) / "abstracts_cleaned.csv"
     ra_path = Path(DATA_DIR) / "ra_questions_cleaned.csv"
     prp_path = Path(DATA_DIR) / "primary_programmes.csv"
@@ -78,10 +126,10 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, str]:
 
     # PRP columns
     prp_name_col = "Primary_Programme" if "Primary_Programme" in prp.columns else (
-        "Primary Research Programme" if "Primary Research Programme" in prp.columns else prp.columns[0]
+        "Primary Research Programme" if "Primary Research Programme" in prp.columns else str(prp.columns[0])
     )
     prp_desc_col = "Description" if "Description" in prp.columns else (
-        "Description_Cleaned" if "Description_Cleaned" in prp.columns else (prp.columns[1] if len(prp.columns) > 1 else None)
+        "Description_Cleaned" if "Description_Cleaned" in prp.columns else (str(prp.columns[1]) if len(prp.columns) > 1 else None)
     )
 
     # Build PRP text used in prompts
@@ -124,11 +172,66 @@ def preflight_llm_affinity(reasoner: LLMReasoner) -> None:
         )
 
 
+def load_prp_routing_map(
+    prp_input: str,
+    top_n: int,
+    min_affinity: Optional[float],
+) -> Dict[str, List[str]]:
+    path = Path(prp_input)
+    if not path.exists() and not path.is_absolute():
+        # Convenience: allow passing just "prp_affinities.csv" from repo root.
+        alt = Path(RESULTS_DIR) / path
+        if alt.exists():
+            path = alt
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"PRP routing input not found: {path} (cwd={Path.cwd()}). "
+            "Run --mode prp first or provide --prp-input data/results/prp_affinities.csv."
+        )
+
+    df = pd.read_csv(path)
+    needed = {"Abstract_Index", "PRP_Name", "LLM_Affinity"}
+    missing = needed - set(df.columns)
+    if missing:
+        raise ValueError(f"PRP routing input missing columns: {sorted(missing)}")
+
+    df = df.dropna(subset=["Abstract_Index", "PRP_Name", "LLM_Affinity"]).copy()
+    if min_affinity is not None:
+        df = df[df["LLM_Affinity"].astype(float) >= float(min_affinity)]
+
+    df["_abs_key"] = df["Abstract_Index"].astype(str)
+    df["_aff"] = df["LLM_Affinity"].astype(float)
+    routing: Dict[str, List[str]] = {}
+    for abs_key, grp in df.groupby("_abs_key"):
+        pairs = []
+        for _, row in grp.iterrows():
+            name = str(row["PRP_Name"]).strip()
+            if not name:
+                continue
+            pairs.append((name, float(row["_aff"])))
+        pairs.sort(key=lambda x: x[1], reverse=True)
+        vals = [name for name, _ in pairs]
+        deduped = list(dict.fromkeys(vals))
+        routing[str(abs_key)] = deduped[:max(1, int(top_n))]
+    return routing
+
+
 def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_idx: Any,
-                                      classifier: RAClassifier, reasoner: LLMReasoner, top_k: int) -> List[Dict[str, Any]]:
+                                      classifier: RAClassifier, reasoner: LLMReasoner, top_k: int,
+                                      retrieval_mode: str = "cosine",
+                                      top_programmes: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     records = []
-    # Reuse existing top-k retrieval (includes cosine similarity and question text)
-    candidates = classifier.get_top_k_candidates(abstract_text, top_k=top_k)
+    candidates = classifier.get_top_k_candidates(
+        abstract_text,
+        top_k=top_k,
+        retrieval_mode=retrieval_mode,
+        top_programmes=top_programmes,
+    )
+
+    # Graceful fallback if PRP-filtered retrieval yields no candidates.
+    if not candidates and retrieval_mode in {"prp_filter", "prp_only"}:
+        candidates = classifier.get_top_k_candidates(abstract_text, top_k=top_k, retrieval_mode="cosine")
 
     for cand in candidates:
         ra_id = cand.get("RA2025_ID") or cand.get("RA2025")
@@ -168,9 +271,7 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
 
 
 def main():
-    # abs_path = Path(DATA_DIR) / "abstracts_cleaned.csv"
-    # ra_path = Path(DATA_DIR) / "ra_questions_cleaned.csv"
-    # prp_path = Path(DATA_DIR) / "primary_programmes.xlsx"
+    args = parse_args()
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
     _, classifier, reasoner = init_models(ra)
@@ -185,40 +286,76 @@ def main():
     titles = abstracts["Document Title"] if "Document Title" in abstracts.columns else pd.Series([f"doc_{i}" for i in range(n)])
     abs_texts = abstracts["Abstract_Cleaned"].astype(str)
 
+    prp_routing_map: Dict[str, List[str]] = {}
+    if args.mode in {"ra", "both"} and args.ra_retrieval_mode in {"prp_filter", "prp_only"}:
+        prp_routing_map = load_prp_routing_map(
+            prp_input=args.prp_input,
+            top_n=args.prp_top_n,
+            min_affinity=args.prp_min_affinity,
+        )
+
     for i in tqdm(range(n), desc="Evaluating affinities"):
         doc_title = titles.iloc[i]
         src_idx = abstracts.iloc[i]["Source_Index"] if "Source_Index" in abstracts.columns else i
 
         abstract_text = abs_texts.iloc[i]
-        # RA: top-K candidates using classifier + LLM affinity
-        ra_rows.extend(
-            evaluate_ra_affinity_for_abstract(abstract_text, doc_title, src_idx, classifier, reasoner, TOP_K)
-        )
-        # PRP: LLM-only for all PRPs
-        prp_rows.extend(
-            evaluate_prp_affinity_for_abstract(abstract_text, doc_title, src_idx, prp, prp_name_col, prp_desc_col, reasoner)
-        )
+        if args.mode in {"ra", "both"}:
+            routed_prps = prp_routing_map.get(str(src_idx), []) if prp_routing_map else None
+            ra_rows.extend(
+                evaluate_ra_affinity_for_abstract(
+                    abstract_text,
+                    doc_title,
+                    src_idx,
+                    classifier,
+                    reasoner,
+                    TOP_K,
+                    retrieval_mode=args.ra_retrieval_mode,
+                    top_programmes=routed_prps,
+                )
+            )
+
+        if args.mode in {"prp", "both"}:
+            prp_rows.extend(
+                evaluate_prp_affinity_for_abstract(
+                    abstract_text,
+                    doc_title,
+                    src_idx,
+                    prp,
+                    prp_name_col,
+                    prp_desc_col,
+                    reasoner,
+                )
+            )
+
         if (i + 1) % SAVE_EVERY == 0:
-            pd.DataFrame(ra_rows).to_csv(Path(RESULTS_DIR) / "ra_affinities.csv", index=False)
-            pd.DataFrame(prp_rows).to_csv(Path(RESULTS_DIR) / "prp_affinities.csv", index=False)
+            if args.mode in {"ra", "both"}:
+                pd.DataFrame(ra_rows).to_csv(Path(RESULTS_DIR) / "ra_affinities.csv", index=False)
+            if args.mode in {"prp", "both"}:
+                pd.DataFrame(prp_rows).to_csv(Path(RESULTS_DIR) / "prp_affinities.csv", index=False)
             
     # final save
     ra_out = Path(RESULTS_DIR) / "ra_affinities.csv"
     prp_out = Path(RESULTS_DIR) / "prp_affinities.csv"
-    pd.DataFrame(ra_rows).to_csv(ra_out, index=False)
-    pd.DataFrame(prp_rows).to_csv(prp_out, index=False)
+    if args.mode in {"ra", "both"}:
+        pd.DataFrame(ra_rows).to_csv(ra_out, index=False)
+    if args.mode in {"prp", "both"}:
+        pd.DataFrame(prp_rows).to_csv(prp_out, index=False)
 
     # combined xlsx (best effort)
     combined_out = Path(RESULTS_DIR) / "combined_affinities.xlsx"
     try:
         with pd.ExcelWriter(combined_out) as writer:
-            pd.DataFrame(ra_rows).to_excel(writer, sheet_name="RA_Affinities", index=False)
-            pd.DataFrame(prp_rows).to_excel(writer, sheet_name="PRP_Affinities", index=False)
+            if args.mode in {"ra", "both"}:
+                pd.DataFrame(ra_rows).to_excel(writer, sheet_name="RA_Affinities", index=False)
+            if args.mode in {"prp", "both"}:
+                pd.DataFrame(prp_rows).to_excel(writer, sheet_name="PRP_Affinities", index=False)
     except Exception:
         pass
 
-    print(f"Saved RA affinities -> {ra_out}")
-    print(f"Saved PRP affinities -> {prp_out}")
+    if args.mode in {"ra", "both"}:
+        print(f"Saved RA affinities -> {ra_out}")
+    if args.mode in {"prp", "both"}:
+        print(f"Saved PRP affinities -> {prp_out}")
     print(f"Saved combined (xlsx) -> {combined_out}")
 
 
