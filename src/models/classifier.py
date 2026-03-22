@@ -3,6 +3,10 @@ Module: classifier.py
 Retrieves top-k candidate RA2025 questions based on cosine similarity.
 """
 
+import hashlib
+import os
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 
@@ -13,6 +17,7 @@ class RAClassifier:
         self.embedder = embedder
         self.ra_df = ra_df
         self.text_column = text_column
+        self._cache_dir = Path(os.getenv("RA_EMBED_CACHE_DIR", "data/processed/cache"))
         self.primary_cols = [
             "Primary Research Programme",
             "Primary_Research_Programme",
@@ -26,7 +31,38 @@ class RAClassifier:
             "Secondary_Programme",
         ]
         print("🔸 Building RA2025 question embeddings...")
-        self.ra_embeddings = embedder.embed_texts(ra_df[text_column].tolist())
+        texts = [str(v) for v in ra_df[text_column].tolist()]
+        self.ra_embeddings = self._load_or_build_ra_embeddings(texts)
+
+    def _cache_file_for_texts(self, texts: list[str]) -> Path:
+        model_name = getattr(self.embedder, "model_name", "unknown-model")
+        joined = "\x1f".join(texts)
+        digest = hashlib.sha256(f"{model_name}|{self.text_column}|{joined}".encode("utf-8")).hexdigest()
+        return self._cache_dir / f"ra_embeddings_{digest}.npy"
+
+    @staticmethod
+    def _to_numpy(embeddings):
+        if hasattr(embeddings, "detach") and hasattr(embeddings, "cpu"):
+            return embeddings.detach().cpu().numpy()
+        if hasattr(embeddings, "numpy"):
+            return embeddings.numpy()
+        return np.asarray(embeddings, dtype=np.float32)
+
+    def _load_or_build_ra_embeddings(self, texts: list[str]):
+        cache_file = self._cache_file_for_texts(texts)
+        if cache_file.exists():
+            print(f"🔸 Loading cached RA embeddings: {cache_file}")
+            return np.load(cache_file, allow_pickle=False)
+
+        embeddings = self.embedder.embed_texts(texts)
+        try:
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
+            np.save(cache_file, self._to_numpy(embeddings), allow_pickle=False)
+            print(f"🔸 Saved RA embeddings cache: {cache_file}")
+        except Exception as exc:
+            print(f"⚠️  Could not save RA embeddings cache: {exc}")
+        return embeddings
+        
 
     @staticmethod
     def _first_nonempty(row: pd.Series, cols: list):

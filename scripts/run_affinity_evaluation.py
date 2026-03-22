@@ -22,6 +22,7 @@ Outputs:
 # python run_affinity_evaluation.py --mode both --ra-retrieval-mode cosine
 import argparse
 import os
+import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -33,6 +34,12 @@ import yaml
 from src.models.embeddings import EmbeddingModel
 from src.models.classifier import RAClassifier
 from src.models.llm_reasoner import LLMReasoner
+try:
+    # Works when executed from repo root as a package path.
+    from scripts.util.execution_time_logger import AffinityTimingLogger
+except ModuleNotFoundError:
+    # Works when executed directly from inside scripts/.
+    from util.execution_time_logger import AffinityTimingLogger
 
 DATA_DIR = "data/processed"
 RESULTS_DIR = "data/results"
@@ -44,6 +51,17 @@ LLM_MODEL = os.getenv("AFFINITY_LLM_MODEL", "gpt-4o-mini")
 TOP_K = int(os.getenv("AFFINITY_TOP_K", "5"))
 SAVE_EVERY = int(os.getenv("SAVE_EVERY", "50"))
 CFG_PATH = os.path.join("src", "config", "settings.yaml")
+
+
+def _normalize_id(value: Any) -> str:
+    s = str(value).strip()
+    try:
+        f = float(s)
+        if f.is_integer():
+            return str(int(f))
+    except Exception:
+        pass
+    return s
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,7 +76,7 @@ def parse_args() -> argparse.Namespace:
         "--ra-retrieval-mode",
         choices=["cosine", "prp_filter", "prp_only"],
         default="prp_only",
-        help="RA candidate retrieval strategy (default: cosine)",
+        help="RA candidate retrieval strategy (default: prp_only)",
     )
     parser.add_argument(
         "--prp-input",
@@ -233,13 +251,28 @@ def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_id
     if not candidates and retrieval_mode in {"prp_filter", "prp_only"}:
         candidates = classifier.get_top_k_candidates(abstract_text, top_k=top_k, retrieval_mode="cosine")
 
+    # Batch all RA candidates into a single LLM call (Structured Batch Prompting)
+    if candidates:
+        ra_targets = [
+            {
+                "id": _normalize_id(cand.get("RA2025_ID") or cand.get("RA2025")),
+                "text": cand.get("Question") or cand.get("Question_Cleaned")
+            }
+            for cand in candidates
+        ]
+        affinity_scores = reasoner.rate_affinity_batch(abstract_text, ra_targets, target_type="RA")
+    else:
+        affinity_scores = {}
+
     for cand in candidates:
         ra_id = cand.get("RA2025_ID") or cand.get("RA2025")
         question = cand.get("Question") or cand.get("Question_Cleaned")
         cos = float(cand.get("Similarity", np.nan))
         cos100 = float(np.round(cos * 100.0, 4)) if not np.isnan(cos) else np.nan
-        # LLM numeric affinity (0–100)
-        llm_aff = reasoner.rate_affinity(abstract_text, question, target_type="RA")
+        
+        # Get LLM affinity from batch results
+        llm_aff = affinity_scores.get(_normalize_id(ra_id))
+        
         records.append({
             "Abstract_Index": src_idx,
             "Document Title": doc_title,
@@ -255,11 +288,39 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
                                        prp: pd.DataFrame, prp_name_col: str, prp_desc_col: str | None,
                                        reasoner: LLMReasoner) -> List[Dict[str, Any]]:
     records = []
+    
+    # Batch all PRP candidates into a single LLM call (Structured Batch Prompting)
+    prp_targets = []
+    prp_rows_list = []
+    
     for _, prow in prp.iterrows():
         name = prow[prp_name_col]
         desc = prow[prp_desc_col] if prp_desc_col is not None else ""
         prp_text = prow["PRP_Text"]
-        llm_aff = reasoner.rate_affinity(abstract_text, prp_text, target_type="PRP")
+        
+        prp_targets.append({
+            "id": str(name),
+            "text": prp_text
+        })
+        prp_rows_list.append({
+            "name": name,
+            "desc": desc
+        })
+    
+    # Single batch call for all PRPs
+    if prp_targets:
+        affinity_scores = reasoner.rate_affinity_batch(abstract_text, prp_targets, target_type="PRP")
+    else:
+        affinity_scores = {}
+    
+    # Build records from batch results
+    for prp_info, target_dict in zip(prp_rows_list, prp_targets):
+        name = prp_info["name"]
+        desc = prp_info["desc"]
+        target_id = target_dict["id"]
+        
+        llm_aff = affinity_scores.get(target_id)
+        
         records.append({
             "Abstract_Index": src_idx,
             "Document Title": doc_title,
@@ -267,18 +328,27 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
             "PRP_Description": desc,
             "LLM_Affinity": None if llm_aff is None else float(np.round(float(llm_aff), 4)),
         })
+    
     return records
 
 
 def main():
     args = parse_args()
+    timing_logger = AffinityTimingLogger.from_results_dir(RESULTS_DIR)
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
     _, classifier, reasoner = init_models(ra)
-    preflight_llm_affinity(reasoner)
+
+    # step_start = time.perf_counter()
+    # preflight_llm_affinity(reasoner)
+    # startup_timings.append(("preflight_llm_affinity", time.perf_counter() - step_start))
 
     ra_rows: List[Dict[str, Any]] = []
     prp_rows: List[Dict[str, Any]] = []
+    ra_total_elapsed = 0.0
+    prp_total_elapsed = 0.0
+    ra_total_targets = 0
+    prp_total_targets = 0
 
     # filter out already classified abstracts
     abstracts = abstracts[abstracts["Already_Classified"] != True] 
@@ -301,31 +371,37 @@ def main():
         abstract_text = abs_texts.iloc[i]
         if args.mode in {"ra", "both"}:
             routed_prps = prp_routing_map.get(str(src_idx), []) if prp_routing_map else None
-            ra_rows.extend(
-                evaluate_ra_affinity_for_abstract(
-                    abstract_text,
-                    doc_title,
-                    src_idx,
-                    classifier,
-                    reasoner,
-                    TOP_K,
-                    retrieval_mode=args.ra_retrieval_mode,
-                    top_programmes=routed_prps,
-                )
+            ra_start = time.perf_counter()
+            ra_records = evaluate_ra_affinity_for_abstract(
+                abstract_text,
+                doc_title,
+                src_idx,
+                classifier,
+                reasoner,
+                TOP_K,
+                retrieval_mode=args.ra_retrieval_mode,
+                top_programmes=routed_prps,
             )
+            ra_elapsed = time.perf_counter() - ra_start
+            ra_total_elapsed += ra_elapsed
+            ra_total_targets += len(ra_records)
+            ra_rows.extend(ra_records)
 
         if args.mode in {"prp", "both"}:
-            prp_rows.extend(
-                evaluate_prp_affinity_for_abstract(
-                    abstract_text,
-                    doc_title,
-                    src_idx,
-                    prp,
-                    prp_name_col,
-                    prp_desc_col,
-                    reasoner,
-                )
+            prp_start = time.perf_counter()
+            prp_records = evaluate_prp_affinity_for_abstract(
+                abstract_text,
+                doc_title,
+                src_idx,
+                prp,
+                prp_name_col,
+                prp_desc_col,
+                reasoner,
             )
+            prp_elapsed = time.perf_counter() - prp_start
+            prp_total_elapsed += prp_elapsed
+            prp_total_targets += len(prp_records)
+            prp_rows.extend(prp_records)
 
         if (i + 1) % SAVE_EVERY == 0:
             if args.mode in {"ra", "both"}:
@@ -351,6 +427,26 @@ def main():
                 pd.DataFrame(prp_rows).to_excel(writer, sheet_name="PRP_Affinities", index=False)
     except Exception:
         pass
+
+    # Aggregate timing logs: one entry per stage for the full run.
+    if args.mode in {"ra", "both"}:
+        timing_logger.log_event(
+            stage="ra",
+            abstract_index="ALL",
+            document_title="ALL_ABSTRACTS",
+            targets_evaluated=ra_total_targets,
+            records_written=len(ra_rows),
+            elapsed_seconds=ra_total_elapsed,
+        )
+    if args.mode in {"prp", "both"}:
+        timing_logger.log_event(
+            stage="prp",
+            abstract_index="ALL",
+            document_title="ALL_ABSTRACTS",
+            targets_evaluated=prp_total_targets,
+            records_written=len(prp_rows),
+            elapsed_seconds=prp_total_elapsed,
+        )
 
     if args.mode in {"ra", "both"}:
         print(f"Saved RA affinities -> {ra_out}")

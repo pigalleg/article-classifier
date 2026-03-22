@@ -202,85 +202,199 @@ Return your answer in strict JSON format:
 
     def rate_affinity(self, abstract: str, target_text: str, target_type: str = "RA"):
         """
+        DEPRECATED: Use rate_affinity_batch() instead for better token efficiency.
+        
         Return a numeric affinity (0–100) for the pair (abstract, target_text).
         target_type: "RA" or "PRP" (chooses prompt wording).
-        Deterministic (temperature=0) and robust numeric parsing with retries and client-side rate limiting.
+        Falls back to single-item batch call.
         """
         if not abstract or not target_text:
             return None
+        
+        # Convert to batch format and delegate
+        targets = [{"id": "single", "text": target_text}]
+        result = self.rate_affinity_batch(abstract, targets, target_type)
+        return result.get("single")
 
-        if target_type == "PRP":
-            prompt = (
-                "You are evaluating how strongly a research abstract relates to a Primary Research Programme.\n"
-                "The programme is described below.\n"
-                "Rate the degree of relation on a scale from 0 to 100 (100 = totally related, 0 = not related at all).\n"
-                "Return only the number.\n\n"
-                f"Abstract:\n{abstract}\n\n"
-                f"Primary Research Programme:\n{target_text}\n"
-            )
+    def _apply_rate_limit(self):
+        """Apply client-side rate limiting."""
+        if self._min_interval > 0:
+            elapsed = time.time() - self._last_request_time
+            if elapsed < self._min_interval:
+                to_sleep = self._min_interval - elapsed
+                if to_sleep > 0:
+                    time.sleep(to_sleep)
+
+    def _extract_json_from_reply(self, reply: str) -> str:
+        """Extract JSON object from reply, handling various formats."""
+        json_text = None
+        first = reply.find("{")
+        last = reply.rfind("}")
+        
+        if first != -1 and last != -1 and last > first:
+            json_text = reply[first:last+1]
         else:
-            prompt = (
-                "You are evaluating how strongly a research abstract relates to a Research Agenda 2025 question.\n"
-                "Rate the degree of relation on a scale from 0 to 100 (100 = totally related, 0 = not related at all).\n"
-                "Return only the number.\n\n"
+            # Try removing code fences
+            mf = re.search(r"```(?:json)?\s*(.*?)\s*```", reply, re.DOTALL | re.IGNORECASE)
+            if mf:
+                content = mf.group(1).strip()
+                f = content.find("{")
+                l = content.rfind("}")
+                if f != -1 and l != -1 and l > f:
+                    json_text = content[f:l+1]
+        
+        return json_text if json_text is not None else reply
+
+    @staticmethod
+    def _normalize_target_id(value) -> str:
+        """Normalize target IDs so response keys map reliably to input IDs."""
+        s = str(value).strip()
+        # Normalize integer-like numeric ids, e.g. "38.0" -> "38"
+        m = re.fullmatch(r"-?\d+(?:\.\d+)?", s)
+        if m:
+            try:
+                f = float(s)
+                if f.is_integer():
+                    return str(int(f))
+            except Exception:
+                pass
+        return s
+
+    def _normalize_batch_scores(self, data: dict, targets: list) -> dict:
+        """Normalize model response keys and map ordinal keys back to target IDs."""
+        out = {}
+        id_to_raw = {
+            self._normalize_target_id(t.get("id")): t.get("id")
+            for t in targets
+        }
+
+        for raw_key, raw_score in data.items():
+            key = str(raw_key).strip()
+            normalized_key = self._normalize_target_id(key)
+
+            mapped_key = None
+            if normalized_key in id_to_raw:
+                mapped_key = self._normalize_target_id(id_to_raw[normalized_key])
+            else:
+                # Fallback for ordinal outputs like RA1, RA2, 1, 2
+                m = re.fullmatch(r"(?:RA|PRP)?\s*(\d+)", key, flags=re.IGNORECASE)
+                if m:
+                    idx = int(m.group(1)) - 1
+                    if 0 <= idx < len(targets):
+                        mapped_key = self._normalize_target_id(targets[idx].get("id"))
+
+            if mapped_key is None:
+                continue
+
+            try:
+                val = float(raw_score)
+                val = max(0.0, min(100.0, val))
+                out[mapped_key] = val
+            except (ValueError, TypeError):
+                out[mapped_key] = None
+
+        return out
+
+    def _build_affinity_prompt(self, abstract: str, targets_text: str, target_type: str) -> str:
+        """Build prompt for affinity evaluation."""
+        if target_type == "PRP":
+            return (
+                "You are evaluating how strongly a research abstract relates to multiple Primary Research Programmes.\n"
+                "For each programme below, rate the degree of relation on a scale from 0 to 100 "
+                "(100 = totally related, 0 = not related at all).\n"
+                "Return ONLY a JSON object with no extra text, using the EXACT bracketed IDs as keys.\n\n"
                 f"Abstract:\n{abstract}\n\n"
-                f"Research Agenda Question:\n{target_text}\n"
+                f"Primary Research Programmes:\n{targets_text}\n\n"
+                "Return format example: {\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}"
+            )
+        else:  # RA type
+            return (
+                "You are evaluating how strongly a research abstract relates to multiple Research Agenda 2025 questions.\n"
+                "For each question below, rate the degree of relation on a scale from 0 to 100 "
+                "(100 = totally related, 0 = not related at all).\n"
+                "Return ONLY a JSON object with no extra text, using the EXACT bracketed IDs as keys.\n\n"
+                f"Abstract:\n{abstract}\n\n"
+                f"Research Agenda Questions:\n{targets_text}\n\n"
+                "Return format example: {\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}"
             )
 
+    def rate_affinity_batch(self, abstract: str, targets: list, target_type: str = "RA") -> dict:
+        """
+        Dynamically evaluate affinity for multiple targets in a single LLM call.
+        
+        Args:
+            abstract: The research abstract text
+            targets: List of dicts with keys:
+                - "id": unique identifier (e.g., "RA1", "PRP_Climate")
+                - "text": the target text to evaluate
+            target_type: "RA" or "PRP" for prompt context
+        
+        Returns:
+            Dict mapping target_id -> affinity_score (0-100), or empty dict on failure
+        """
+        if not abstract or not targets:
+            return {}
+        
+        # Build target list for prompt
+        targets_text = "\n".join(
+            f"{i+1}. [{self._normalize_target_id(t['id'])}] {t['text']}"
+            for i, t in enumerate(targets)
+        )
+        
+        prompt = self._build_affinity_prompt(abstract, targets_text, target_type)
+        results = {}
+        
         for attempt in range(1, self.max_retries + 1):
             try:
-                # rate limit
-                if self._min_interval > 0:
-                    elapsed = time.time() - self._last_request_time
-                    if elapsed < self._min_interval:
-                        to_sleep = self._min_interval - elapsed
-                        if to_sleep > 0:
-                            time.sleep(to_sleep)
-
+                self._apply_rate_limit()
+                
                 resp = self.client.chat.completions.create(
                     model=self.model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.0,
                 )
                 self._last_request_time = time.time()
-
+                
                 try:
                     reply = resp.choices[0].message.content.strip()
                 except Exception:
                     reply = str(resp)
-
+                
                 if os.getenv("AFFINITY_DEBUG") == "1":
-                    print(f"[rate_affinity] raw reply: {reply}")
-
-                # extract first number and clamp to [0,100]
-                m = re.search(r"(-?\d+(\.\d+)?)", reply)
-                if not m:
-                    # try stripping code fences then search again
-                    mf = re.search(r"```(?:json)?\s*(.*?)\s*```", reply, re.DOTALL | re.IGNORECASE)
-                    content = mf.group(1) if mf else reply
-                    m = re.search(r"(-?\d+(\.\d+)?)", content)
-
-                if not m:
-                    return None
-
-                val = float(m.group(1))
-                if val < 0:
-                    val = 0.0
-                if val > 100:
-                    val = 100.0
-                return float(val)
-
+                    print(f"[rate_affinity_batch] raw reply: {reply}")
+                
+                json_text = self._extract_json_from_reply(reply)
+                
+                try:
+                    data = json.loads(json_text)
+                    results = self._normalize_batch_scores(data, targets)
+                    
+                    return results
+                
+                except json.JSONDecodeError as je:
+                    if os.getenv("AFFINITY_DEBUG") == "1":
+                        print(f"[rate_affinity_batch] JSON parse failed: {je}")
+                        print(f"[rate_affinity_batch] raw content: {json_text}")
+                    
+                    if attempt < self.max_retries:
+                        time.sleep(2 * attempt)
+                    else:
+                        return {}
+            
             except Exception as e:
                 if self._is_model_unavailable_error(e):
                     base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL") or "<openai-cloud>"
                     raise RuntimeError(
                         f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
-                        "Set OPENAI_MODEL to an available model for this backend or switch endpoint. "
                         f"Original error: {e}"
                     ) from e
+                
                 if os.getenv("AFFINITY_DEBUG") == "1":
-                    print(f"[rate_affinity] attempt {attempt} failed: {e}")
+                    print(f"[rate_affinity_batch] attempt {attempt} failed: {e}")
+                
                 if attempt < self.max_retries:
                     time.sleep(2 * attempt)
                 else:
-                    return None
+                    return {}
+        
+        return {}
