@@ -37,27 +37,40 @@ CFG_PATH = os.path.join("src", "config", "settings.yaml")
 
 TOP_K = 5  # number of candidate RA questions to consider for LLM
 
+
+def _load_settings(cfg_path: str) -> dict:
+    try:
+        with open(cfg_path, "r") as fh:
+            return yaml.safe_load(fh) or {}
+    except Exception:
+        return {}
+
+
+SETTINGS = _load_settings(CFG_PATH)
+MODEL_DEFAULTS = SETTINGS.get("models", {})
+
 def main():
     # Refactored workflow using helper functions for clarity
     def load_config(cfg_path: str):
         """Read LLM config from YAML and allow environment overrides."""
         model = os.getenv("OPENAI_MODEL")
         rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
+
         try:
             with open(cfg_path, "r") as fh:
                 cfg = yaml.safe_load(fh) or {}
-                model = model or cfg.get("models", {}).get("llm", {}).get("model")
-                rpm = rpm or cfg.get("models", {}).get("llm", {}).get("requests_per_minute")
         except Exception:
-            model = model or "gpt-4o-mini"
-            rpm = rpm or 3
+            cfg = {}
+
+        model = model or cfg.get("models", {}).get("llm", {}).get("model") or "gpt-4o-mini"
+        rpm = rpm or cfg.get("models", {}).get("llm", {}).get("requests_per_minute") or 3
 
         try:
             rpm = int(rpm)
         except Exception:
             rpm = 3
 
-        return model or "gpt-4o-mini", rpm
+        return model, rpm
 
 
     def prepare_dataframe(ieee_df: pd.DataFrame):
@@ -114,7 +127,8 @@ def main():
 
     def init_models(ra_df: pd.DataFrame):
         """Initialize embedding/classifier/reasoner objects."""
-        embedder = EmbeddingModel(model_name="all-mpnet-base-v2")
+        embed_model = os.getenv("AFFINITY_EMBED_MODEL") or MODEL_DEFAULTS.get("embedding_model") or "all-mpnet-base-v2"
+        embedder = EmbeddingModel(model_name=embed_model)
         classifier = RAClassifier(embedder, ra_df, text_column="Question_Cleaned")
         return embedder, classifier
 

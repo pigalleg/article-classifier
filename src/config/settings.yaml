@@ -3,10 +3,31 @@ paths:
   data_raw: data/raw
   data_processed: data/processed
   results: data/results
+
+runtime:
+  affinity:
+    top_k: 5
+    save_every: 50
+    mode: both
+    ra_retrieval_mode: prp_only
+    prp_input: data/results/prp_affinities.csv
+    prp_top_n: 2
+    prp_min_affinity:
+    affinity_debug: false
+    print_micro_batch_size_on_startup: false
+  llm_reasoner:
+    temperature: 0.3
+    max_retries: 3
+    timeout_seconds: 60
+    requests_per_minute_default_cloud: 3
+    requests_per_minute_default_local: 9999
+    micro_batch_size: 10
+
 models:
-  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model: all-mpnet-base-v2
   llm:
     model: gpt-4o-mini
     requests_per_minute: 3
+
 thresholds:
   match_score: 0.5

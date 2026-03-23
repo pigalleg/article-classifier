@@ -41,16 +41,40 @@ except ModuleNotFoundError:
     # Works when executed directly from inside scripts/.
     from util.execution_time_logger import AffinityTimingLogger
 
-DATA_DIR = "data/processed"
-RESULTS_DIR = "data/results"
+CFG_PATH = os.path.join("src", "config", "settings.yaml")
+
+
+def _load_settings(cfg_path: str) -> dict:
+    try:
+        with open(cfg_path, "r") as fh:
+            return yaml.safe_load(fh) or {}
+    except Exception:
+        return {}
+
+
+def _as_int(value, default: int) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return int(default)
+
+
+SETTINGS = _load_settings(CFG_PATH)
+AFFINITY_DEFAULTS = SETTINGS.get("runtime", {}).get("affinity", {})
+PATH_DEFAULTS = SETTINGS.get("paths", {})
+MODEL_DEFAULTS = SETTINGS.get("models", {})
+
+DATA_DIR = PATH_DEFAULTS.get("data_processed", "data/processed")
+RESULTS_DIR = PATH_DEFAULTS.get("results", "data/results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-EMBED_MODEL = os.getenv("AFFINITY_EMBED_MODEL", "all-mpnet-base-v2")
-LLM_MODEL = os.getenv("AFFINITY_LLM_MODEL", "gpt-4o-mini")
-# REQUESTS_PER_MINUTE = int(os.getenv("AFFINITY_RPM", "20"))
-TOP_K = int(os.getenv("AFFINITY_TOP_K", "5"))
-SAVE_EVERY = int(os.getenv("SAVE_EVERY", "50"))
-CFG_PATH = os.path.join("src", "config", "settings.yaml")
+EMBED_MODEL = (
+    os.getenv("AFFINITY_EMBED_MODEL")
+    or MODEL_DEFAULTS.get("embedding_model")
+    or "all-mpnet-base-v2"
+)
+TOP_K = _as_int(os.getenv("AFFINITY_TOP_K") or AFFINITY_DEFAULTS.get("top_k"), 5)
+SAVE_EVERY = _as_int(os.getenv("SAVE_EVERY") or AFFINITY_DEFAULTS.get("save_every"), 50)
 
 
 def _normalize_id(value: Any) -> str:
@@ -69,30 +93,30 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--mode",
         choices=["both", "prp", "ra"],
-        default="both",
+        default=str(AFFINITY_DEFAULTS.get("mode", "both")),
         help="Run PRP only, RA only, or both (default: both)",
     )
     parser.add_argument(
         "--ra-retrieval-mode",
         choices=["cosine", "prp_filter", "prp_only"],
-        default="prp_only",
+        default=str(AFFINITY_DEFAULTS.get("ra_retrieval_mode", "prp_only")),
         help="RA candidate retrieval strategy (default: prp_only)",
     )
     parser.add_argument(
         "--prp-input",
-        default=os.path.join(RESULTS_DIR, "prp_affinities.csv"),
+        default=str(AFFINITY_DEFAULTS.get("prp_input", os.path.join(RESULTS_DIR, "prp_affinities.csv"))),
         help="Path to PRP affinity CSV used by prp_filter/prp_only",
     )
     parser.add_argument(
         "--prp-top-n",
         type=int,
-        default=2,
+        default=_as_int(AFFINITY_DEFAULTS.get("prp_top_n"), 2),
         help="Number of top PRPs per abstract to use for routing (default: 2)",
     )
     parser.add_argument(
         "--prp-min-affinity",
         type=float,
-        default=None,
+        default=AFFINITY_DEFAULTS.get("prp_min_affinity", None),
         help="Optional minimum PRP affinity threshold for routing",
     )
     return parser.parse_args()
@@ -105,19 +129,15 @@ def load_config(cfg_path: str):
     # primary env vars (harmonized with run_classification.py)
     model = os.getenv("OPENAI_MODEL") or os.getenv("AFFINITY_LLM_MODEL")
     rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
-    try:
-        with open(cfg_path, "r") as fh:
-            cfg = yaml.safe_load(fh) or {}
-            model = model or cfg.get("models", {}).get("llm", {}).get("model")
-            rpm = rpm or cfg.get("models", {}).get("llm", {}).get("requests_per_minute")
-    except Exception:
-        model = model or "gpt-4o-mini"
-        rpm = rpm or 3
-    try:
-        rpm = int(rpm)
-    except Exception:
-        rpm = 3
-    return model or "gpt-4o-mini", rpm
+
+    model = (
+        model
+        or SETTINGS.get("models", {}).get("llm", {}).get("model")
+        or "gpt-4o-mini"
+    )
+    rpm = rpm or SETTINGS.get("models", {}).get("llm", {}).get("requests_per_minute")
+    rpm = _as_int(rpm, 3)
+    return model, rpm
 
 
 def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Optional[str]]:
@@ -297,9 +317,10 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
         name = prow[prp_name_col]
         desc = prow[prp_desc_col] if prp_desc_col is not None else ""
         prp_text = prow["PRP_Text"]
+        target_id = _normalize_id(name)
         
         prp_targets.append({
-            "id": str(name),
+            "id": target_id,
             "text": prp_text
         })
         prp_rows_list.append({
@@ -317,7 +338,7 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
     for prp_info, target_dict in zip(prp_rows_list, prp_targets):
         name = prp_info["name"]
         desc = prp_info["desc"]
-        target_id = target_dict["id"]
+        target_id = _normalize_id(target_dict["id"])
         
         llm_aff = affinity_scores.get(target_id)
         

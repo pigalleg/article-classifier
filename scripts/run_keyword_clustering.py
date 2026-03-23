@@ -6,7 +6,7 @@ Saves data/processed/keyword_clusters.csv with:
 - keywords: semicolon-separated normalized keywords in the cluster
 
 Env (optional):
-  KEYWORD_EMBED_MODEL=all-MiniLM-L6-v2
+    KEYWORD_EMBED_MODEL=<override models.embedding_model from src/config/settings.yaml>
   KEYWORD_SIM_THRESHOLD=0.75   # cosine similarity threshold (higher = fewer, larger clusters)
   KEYWORD_COL=Keywords_Cleand  # override input column
   KEYWORD_ALIAS_FILE=src/config/keyword_aliases.yaml  # optional manual synonym map
@@ -23,6 +23,11 @@ import numpy as np
 import pandas as pd
 
 try:
+    import yaml
+except ImportError:
+    yaml = None
+
+try:
     from sentence_transformers import SentenceTransformer
 except ImportError as e:
     raise SystemExit("Please install 'sentence-transformers' (e.g., pip install sentence-transformers)") from e
@@ -37,7 +42,18 @@ PROCESSED_DIR = Path("data/processed")
 INPUT_CSV = PROCESSED_DIR / "abstracts_cleaned.csv"
 OUTPUT_CSV = PROCESSED_DIR / "keyword_clusters.csv"
 
-EMBED_MODEL = os.getenv("KEYWORD_EMBED_MODEL", "all-MiniLM-L6-v2")
+
+def _settings_embedding_model(default: str = "all-MiniLM-L6-v2") -> str:
+    if yaml is None:
+        return default
+    cfg_path = Path("src/config/settings.yaml")
+    try:
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        return cfg.get("models", {}).get("embedding_model") or default
+    except Exception:
+        return default
+
+EMBED_MODEL = os.getenv("KEYWORD_EMBED_MODEL") or _settings_embedding_model()
 SIM_THRESHOLD = float(os.getenv("KEYWORD_SIM_THRESHOLD", "0.75"))
 DIST_THRESHOLD = 1.0 - SIM_THRESHOLD
 

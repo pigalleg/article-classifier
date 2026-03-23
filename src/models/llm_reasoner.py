@@ -8,6 +8,44 @@ import json
 import time
 import re
 import os
+from pathlib import Path
+
+import yaml
+
+
+def _load_reasoner_settings() -> tuple[dict, dict, dict]:
+    cfg_path = Path(__file__).resolve().parents[1] / "config" / "settings.yaml"
+    try:
+        with open(cfg_path, "r") as fh:
+            cfg = yaml.safe_load(fh) or {}
+    except Exception:
+        cfg = {}
+    affinity_defaults = cfg.get("runtime", {}).get("affinity", {})
+    reasoner_defaults = cfg.get("runtime", {}).get("llm_reasoner", {})
+    model_defaults = cfg.get("models", {}).get("llm", {})
+    return affinity_defaults, reasoner_defaults, model_defaults
+
+
+def _as_bool(value, default: bool = False) -> bool:
+    if value is None:
+        return bool(default)
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on", "y"}
+
+
+def _as_int(value, default: int) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return int(default)
+
+
+def _as_float(value, default: float) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return float(default)
 
 class LLMReasoner:
     """Uses an LLM (GPT) to select the best RA question among candidates.
@@ -16,16 +54,20 @@ class LLMReasoner:
     (requests per minute).
     """
 
-    def __init__(self, model="gpt-5", temperature=0.3, max_retries=3, timeout=60,
-                 requests_per_minute=None, base_url=None, api_key=None):
+    def __init__(self, model=None, temperature=None, max_retries=None, timeout=None,
+                 requests_per_minute=None, base_url=None, api_key=None,
+                 micro_batch_size=None):
         """
         If OPENAI_BASE_URL is set, connect to a local/OpenAI-compatible server (e.g., Ollama).
         Otherwise, use OpenAI cloud. API key is read from env if not provided.
         RPM: if not provided, use OPENAI_REQUESTS_PER_MINUTE; default higher for local.
         """
+        affinity_defaults, reasoner_defaults, model_defaults = _load_reasoner_settings()
+
         # Resolve endpoint and credentials
         base_url = base_url or os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL")
         api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY")
+        timeout = _as_int(timeout, _as_int(reasoner_defaults.get("timeout_seconds"), 60))
 
         # Build client (OpenAI SDK is compatible with base_url + api_key)
         if base_url:
@@ -34,19 +76,60 @@ class LLMReasoner:
             self.client = OpenAI(api_key=api_key, timeout=timeout)
 
         # Model and runtime params
-        self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
-        self.temperature = temperature
-        self.max_retries = max_retries
+        self.model = (
+            model
+            or os.getenv("OPENAI_MODEL")
+            or model_defaults.get("model")
+            or "gpt-4o-mini"
+        )
+        self.temperature = _as_float(temperature, _as_float(reasoner_defaults.get("temperature"), 0.3))
+        self.max_retries = _as_int(max_retries, _as_int(reasoner_defaults.get("max_retries"), 3))
 
         # Rate limiting (requests per minute)
         rpm_env = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
+        rpm_default_cloud = _as_int(reasoner_defaults.get("requests_per_minute_default_cloud"), 3)
+        rpm_default_local = _as_int(reasoner_defaults.get("requests_per_minute_default_local"), 9999)
         try:
-            rpm_val = int(requests_per_minute if requests_per_minute is not None else (rpm_env if rpm_env is not None else (9999 if base_url else 3)))
+            rpm_val = int(
+                requests_per_minute
+                if requests_per_minute is not None
+                else (
+                    rpm_env
+                    if rpm_env is not None
+                    else (rpm_default_local if base_url else rpm_default_cloud)
+                )
+            )
         except Exception:
-            rpm_val = 9999 if base_url else 3
+            rpm_val = rpm_default_local if base_url else rpm_default_cloud
         self.requests_per_minute = max(0, rpm_val)
         self._min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute > 0 else 0.0
         self._last_request_time = 0.0
+
+        # Debug/verbosity flags
+        debug_env = os.getenv("AFFINITY_DEBUG")
+        self.affinity_debug = _as_bool(debug_env, _as_bool(affinity_defaults.get("affinity_debug"), False))
+
+        print_mbs_env = os.getenv("AFFINITY_PRINT_MICRO_BATCH_SIZE")
+        self.print_micro_batch_size_on_startup = _as_bool(
+            print_mbs_env,
+            _as_bool(affinity_defaults.get("print_micro_batch_size_on_startup"), False),
+        )
+
+        # Micro-batching for affinity evaluation (targets per API call)
+        # Env var: AFFINITY_MICRO_BATCH_SIZE (default: 10)
+        mbs_env = os.getenv("AFFINITY_MICRO_BATCH_SIZE")
+        mbs_default = _as_int(reasoner_defaults.get("micro_batch_size"), 10)
+        try:
+            mbs_val = int(
+                micro_batch_size
+                if micro_batch_size is not None
+                else (mbs_env if mbs_env is not None else mbs_default)
+            )
+        except Exception:
+            mbs_val = mbs_default
+        self.micro_batch_size = max(1, mbs_val)
+        if self.print_micro_batch_size_on_startup:
+            print(f"Micro-batch size: {self.micro_batch_size}")
 
     @staticmethod
     def _is_model_unavailable_error(err: Exception) -> bool:
@@ -307,6 +390,78 @@ Return your answer in strict JSON format:
                 "Return format example: {\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}"
             )
 
+    @staticmethod
+    def _chunk_targets(targets: list, chunk_size: int) -> list:
+        """Split targets into fixed-size chunks for micro-batching."""
+        if chunk_size <= 0:
+            return [targets]
+        return [targets[i:i + chunk_size] for i in range(0, len(targets), chunk_size)]
+
+    def _rate_affinity_batch_single_call(self, abstract: str, targets: list, target_type: str) -> dict:
+        """Execute one API call for a target chunk."""
+        if not abstract or not targets:
+            return {}
+
+        targets_text = "\n".join(
+            f"{i+1}. [{self._normalize_target_id(t['id'])}] {t['text']}"
+            for i, t in enumerate(targets)
+        )
+
+        prompt = self._build_affinity_prompt(abstract, targets_text, target_type)
+
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                self._apply_rate_limit()
+
+                resp = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.0,
+                )
+                self._last_request_time = time.time()
+
+                try:
+                    reply = resp.choices[0].message.content.strip()
+                except Exception:
+                    reply = str(resp)
+
+                if self.affinity_debug:
+                    print(f"[rate_affinity_batch] raw reply: {reply}")
+
+                json_text = self._extract_json_from_reply(reply)
+
+                try:
+                    data = json.loads(json_text)
+                    return self._normalize_batch_scores(data, targets)
+
+                except json.JSONDecodeError as je:
+                    if self.affinity_debug:
+                        print(f"[rate_affinity_batch] JSON parse failed: {je}")
+                        print(f"[rate_affinity_batch] raw content: {json_text}")
+
+                    if attempt < self.max_retries:
+                        time.sleep(2 * attempt)
+                    else:
+                        return {}
+
+            except Exception as e:
+                if self._is_model_unavailable_error(e):
+                    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL") or "<openai-cloud>"
+                    raise RuntimeError(
+                        f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
+                        f"Original error: {e}"
+                    ) from e
+
+                if self.affinity_debug:
+                    print(f"[rate_affinity_batch] attempt {attempt} failed: {e}")
+
+                if attempt < self.max_retries:
+                    time.sleep(2 * attempt)
+                else:
+                    return {}
+
+        return {}
+
     def rate_affinity_batch(self, abstract: str, targets: list, target_type: str = "RA") -> dict:
         """
         Dynamically evaluate affinity for multiple targets in a single LLM call.
@@ -324,66 +479,21 @@ Return your answer in strict JSON format:
         if not abstract or not targets:
             return {}
         
-        # Build target list for prompt
-        targets_text = "\n".join(
-            f"{i+1}. [{self._normalize_target_id(t['id'])}] {t['text']}"
-            for i, t in enumerate(targets)
-        )
-        
-        prompt = self._build_affinity_prompt(abstract, targets_text, target_type)
-        results = {}
-        
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                self._apply_rate_limit()
-                
-                resp = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.0,
-                )
-                self._last_request_time = time.time()
-                
-                try:
-                    reply = resp.choices[0].message.content.strip()
-                except Exception:
-                    reply = str(resp)
-                
-                if os.getenv("AFFINITY_DEBUG") == "1":
-                    print(f"[rate_affinity_batch] raw reply: {reply}")
-                
-                json_text = self._extract_json_from_reply(reply)
-                
-                try:
-                    data = json.loads(json_text)
-                    results = self._normalize_batch_scores(data, targets)
-                    
-                    return results
-                
-                except json.JSONDecodeError as je:
-                    if os.getenv("AFFINITY_DEBUG") == "1":
-                        print(f"[rate_affinity_batch] JSON parse failed: {je}")
-                        print(f"[rate_affinity_batch] raw content: {json_text}")
-                    
-                    if attempt < self.max_retries:
-                        time.sleep(2 * attempt)
-                    else:
-                        return {}
-            
-            except Exception as e:
-                if self._is_model_unavailable_error(e):
-                    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL") or "<openai-cloud>"
-                    raise RuntimeError(
-                        f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
-                        f"Original error: {e}"
-                    ) from e
-                
-                if os.getenv("AFFINITY_DEBUG") == "1":
-                    print(f"[rate_affinity_batch] attempt {attempt} failed: {e}")
-                
-                if attempt < self.max_retries:
-                    time.sleep(2 * attempt)
-                else:
-                    return {}
-        
-        return {}
+        chunks = self._chunk_targets(targets, self.micro_batch_size)
+        combined = {}
+
+        if self.affinity_debug:
+            print(
+                f"[rate_affinity_batch] targets={len(targets)}, "
+                f"micro_batch_size={self.micro_batch_size}, chunks={len(chunks)}"
+            )
+
+        for chunk in chunks:
+            partial = self._rate_affinity_batch_single_call(
+                abstract=abstract,
+                targets=chunk,
+                target_type=target_type,
+            )
+            combined.update(partial)
+
+        return combined

@@ -32,7 +32,7 @@ class AffinityTimingLogger:
                     "targets_evaluated",
                     "records_written",
                     "elapsed_seconds",
-                    "ms_per_target",
+                    "s_per_target",
                 ],
             )
             writer.writeheader()
@@ -49,7 +49,7 @@ class AffinityTimingLogger:
         # Keep logging non-blocking for the main pipeline.
         try:
             self._ensure_header()
-            ms_per_target = (elapsed_seconds * 1000.0 / targets_evaluated) if targets_evaluated > 0 else None
+            s_per_target = (elapsed_seconds / targets_evaluated) if targets_evaluated > 0 else None
             row = {
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
                 "stage": stage,
@@ -58,7 +58,7 @@ class AffinityTimingLogger:
                 "targets_evaluated": int(targets_evaluated),
                 "records_written": int(records_written),
                 "elapsed_seconds": round(float(elapsed_seconds), 6),
-                "ms_per_target": None if ms_per_target is None else round(ms_per_target, 3),
+                "s_per_target": None if s_per_target is None else round(s_per_target, 6),
             }
             with self.output_path.open("a", newline="", encoding="utf-8") as fh:
                 writer = csv.DictWriter(fh, fieldnames=list(row.keys()))
