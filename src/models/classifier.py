@@ -92,8 +92,6 @@ class RAClassifier:
         candidates = []
         for idx_int in indices:
             row = self.ra_df.iloc[idx_int]
-            primary_prog = self._first_nonempty(row, self.primary_cols)
-            secondary_prog = self._first_nonempty(row, self.secondary_cols)
 
             sim_val = np.nan
             if cos_scores is not None:
@@ -107,10 +105,6 @@ class RAClassifier:
                 "Question": row[self.text_column],
                 "Similarity": sim_val,
             }
-            if primary_prog is not None:
-                cand["Primary_Programme"] = primary_prog
-            if secondary_prog is not None:
-                cand["Secondary_Programme"] = secondary_prog
             candidates.append(cand)
         return candidates
 

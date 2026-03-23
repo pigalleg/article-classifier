@@ -71,21 +71,14 @@ class LLMReasoner:
         if not abstract or not candidates:
             return None, "No data available", None
 
-        # Format candidate list for readability, including programme context if available
+        # Format candidate list for readability
         lines = []
         for c in candidates:
             # support several possible keys from different upstreams
             ra_id = c.get("RA2025_ID") or c.get("RA2025") or c.get("RA2025_id") or c.get("id")
             question = c.get("Question") or c.get("Question_Cleaned") or c.get("Questions - long") or c.get("question") or ""
-            primary = c.get("Primary_Programme") or c.get("Predicted_Primary_Programme")
-            secondary = c.get("Secondary_Programme") or c.get("Predicted_Secondary_Programme")
-            prog_suffix = ""
-            if primary or secondary:
-                p = primary if primary else "-"
-                s = secondary if secondary else "-"
-                prog_suffix = f" [Primary: {p}; Secondary: {s}]"
             id_label = str(ra_id) if ra_id is not None else "-"
-            lines.append(f"- ID {id_label}{prog_suffix}: {question}")
+            lines.append(f"- ID {id_label}: {question}")
 
         candidate_text = "\n".join(lines)
 
@@ -99,13 +92,9 @@ Abstract:
 Candidate RA2025 questions:
 {candidate_text}
 
-Important context:
-- Questions that share the same Primary or Secondary Research Programme are thematically related.
-- When candidates are very similar, prefer the one whose programme alignment best matches the abstract's themes.
-
 Task:
 1. Select the most relevant RA2025_ID from the list.
-2. Explain briefly (2–3 sentences) why this question matches the abstract, optionally referencing programme alignment.
+2. Explain briefly (2–3 sentences) why this question matches the abstract.
 3. Provide a Confidence score in [0, 1] for how well the abstract matches the selected question.
 Return your answer in strict JSON format:
 {{"RA2025_ID": "<selected ID>", "Reason": "<short explanation>", "Confidence": <number between 0 and 1>}}
