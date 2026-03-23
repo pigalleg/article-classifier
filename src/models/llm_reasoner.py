@@ -9,6 +9,7 @@ import time
 import re
 import os
 from pathlib import Path
+import difflib
 
 import yaml
 
@@ -333,7 +334,9 @@ Return your answer in strict JSON format:
         return s
 
     def _normalize_batch_scores(self, data: dict, targets: list) -> dict:
-        """Normalize model response keys and map ordinal keys back to target IDs."""
+        """Normalize model response keys and map ordinal keys back to target IDs.
+        Tries multiple strategies: exact match, ordinal, substring, fuzzy match.
+        """
         out = {}
         id_to_raw = {
             self._normalize_target_id(t.get("id")): t.get("id")
@@ -345,15 +348,34 @@ Return your answer in strict JSON format:
             normalized_key = self._normalize_target_id(key)
 
             mapped_key = None
+            
+            # Strategy 1: Exact normalized match
             if normalized_key in id_to_raw:
                 mapped_key = self._normalize_target_id(id_to_raw[normalized_key])
             else:
-                # Fallback for ordinal outputs like RA1, RA2, 1, 2
+                # Strategy 2: Ordinal outputs like RA1, RA2, PRP1, PRP2, 1, 2
                 m = re.fullmatch(r"(?:RA|PRP)?\s*(\d+)", key, flags=re.IGNORECASE)
                 if m:
                     idx = int(m.group(1)) - 1
                     if 0 <= idx < len(targets):
                         mapped_key = self._normalize_target_id(targets[idx].get("id"))
+                
+                # Strategy 3: Substring match (for abbreviated names like "Grid Flexibility" vs full name)
+                if mapped_key is None:
+                    key_lower = key.lower()
+                    for norm_id, raw_id in id_to_raw.items():
+                        raw_lower = str(raw_id).lower()
+                        # Check if response key is contained in target ID or vice versa
+                        if key_lower in raw_lower or raw_lower in key_lower:
+                            mapped_key = norm_id
+                            break
+                
+                # Strategy 4: Fuzzy match (for typos or slight variations)
+                if mapped_key is None:
+                    targets_ids = list(id_to_raw.values())
+                    matches = difflib.get_close_matches(key, targets_ids, n=1, cutoff=0.6)
+                    if matches:
+                        mapped_key = self._normalize_target_id(id_to_raw[self._normalize_target_id(matches[0])])
 
             if mapped_key is None:
                 continue

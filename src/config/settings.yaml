@@ -7,7 +7,7 @@ paths:
 runtime:
   affinity:
     top_k: 5
-    save_every: 50
+    save_every: 2
     mode: both
     ra_retrieval_mode: prp_only
     prp_input: data/results/prp_affinities.csv
@@ -21,7 +21,7 @@ runtime:
     timeout_seconds: 60
     requests_per_minute_default_cloud: 3
     requests_per_minute_default_local: 9999
-    micro_batch_size: 10
+    micro_batch_size: 1
 
 models:
   embedding_model: all-mpnet-base-v2
