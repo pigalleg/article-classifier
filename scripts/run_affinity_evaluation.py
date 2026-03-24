@@ -127,15 +127,15 @@ def load_config(cfg_path: str):
     Supports OPENAI_MODEL / OPENAI_REQUESTS_PER_MINUTE; falls back to cfg.models.llm.*.
     """
     # primary env vars (harmonized with run_classification.py)
-    model = os.getenv("OPENAI_MODEL") or os.getenv("AFFINITY_LLM_MODEL")
-    rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
+    model = os.getenv("OPENAI_MODEL")
+    rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE")
 
     model = (
         model
         or SETTINGS.get("models", {}).get("llm", {}).get("model")
         or "gpt-4o-mini"
     )
-    rpm = rpm or SETTINGS.get("models", {}).get("llm", {}).get("requests_per_minute")
+    rpm = rpm or SETTINGS.get("models", {}).get("llm", {}).get("requests_per_minute_default_local")
     rpm = _as_int(rpm, 3)
     return model, rpm
 
@@ -189,7 +189,7 @@ def init_models(ra_df: pd.DataFrame) -> tuple[EmbeddingModel, RAClassifier, LLMR
 
 def preflight_llm_affinity(reasoner: LLMReasoner) -> None:
     """Fail fast if the configured model/backend cannot produce affinity outputs."""
-    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL") or "<openai-cloud>"
+    base_url = os.getenv("OPENAI_BASE_URL") or "<openai-cloud>"
     try:
         # Reuse the exact affinity path used in the main loop.
         val = reasoner.rate_affinity(

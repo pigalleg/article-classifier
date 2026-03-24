@@ -11,12 +11,12 @@ runtime:
     mode: both
     ra_retrieval_mode: prp_only
     prp_input: data/results/prp_affinities.csv
-    prp_top_n: 2
+    prp_top_n: 6 # 6 is the default for PRP, but can be adjusted based on needs
     prp_min_affinity:
     affinity_debug: false
     print_micro_batch_size_on_startup: false
   llm_reasoner:
-    temperature: 0.3
+    temperature: 0
     max_retries: 3
     timeout_seconds: 60
     requests_per_minute_default_cloud: 3
@@ -27,7 +27,7 @@ models:
   embedding_model: all-mpnet-base-v2
   llm:
     model: gpt-4o-mini
-    requests_per_minute: 3
+    requests_per_minute_default_local: 3
 
 thresholds:
   match_score: 0.5

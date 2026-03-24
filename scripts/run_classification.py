@@ -54,7 +54,7 @@ def main():
     def load_config(cfg_path: str):
         """Read LLM config from YAML and allow environment overrides."""
         model = os.getenv("OPENAI_MODEL")
-        rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
+        rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE")
 
         try:
             with open(cfg_path, "r") as fh:
@@ -63,7 +63,11 @@ def main():
             cfg = {}
 
         model = model or cfg.get("models", {}).get("llm", {}).get("model") or "gpt-4o-mini"
-        rpm = rpm or cfg.get("models", {}).get("llm", {}).get("requests_per_minute") or 3
+        rpm = (
+            rpm
+            or cfg.get("models", {}).get("llm", {}).get("requests_per_minute_default_local")
+            or 3
+        )
 
         try:
             rpm = int(rpm)

@@ -66,8 +66,8 @@ class LLMReasoner:
         affinity_defaults, reasoner_defaults, model_defaults = _load_reasoner_settings()
 
         # Resolve endpoint and credentials
-        base_url = base_url or os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL")
-        api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY")
+        base_url = base_url or os.getenv("OPENAI_BASE_URL")
+        api_key = api_key or os.getenv("OPENAI_API_KEY")
         timeout = _as_int(timeout, _as_int(reasoner_defaults.get("timeout_seconds"), 60))
 
         # Build client (OpenAI SDK is compatible with base_url + api_key)
@@ -83,11 +83,12 @@ class LLMReasoner:
             or model_defaults.get("model")
             or "gpt-4o-mini"
         )
+        print(f"Using model: {self.model}")
         self.temperature = _as_float(temperature, _as_float(reasoner_defaults.get("temperature"), 0.3))
         self.max_retries = _as_int(max_retries, _as_int(reasoner_defaults.get("max_retries"), 3))
 
         # Rate limiting (requests per minute)
-        rpm_env = os.getenv("OPENAI_REQUESTS_PER_MINUTE") or os.getenv("AFFINITY_RPM")
+        rpm_env = os.getenv("OPENAI_REQUESTS_PER_MINUTE")
         rpm_default_cloud = _as_int(reasoner_defaults.get("requests_per_minute_default_cloud"), 3)
         rpm_default_local = _as_int(reasoner_defaults.get("requests_per_minute_default_local"), 9999)
         try:
@@ -102,6 +103,7 @@ class LLMReasoner:
             )
         except Exception:
             rpm_val = rpm_default_local if base_url else rpm_default_cloud
+        print(f"Requests per minute: {rpm_val}")
         self.requests_per_minute = max(0, rpm_val)
         self._min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute > 0 else 0.0
         self._last_request_time = 0.0
@@ -468,7 +470,7 @@ Return your answer in strict JSON format:
 
             except Exception as e:
                 if self._is_model_unavailable_error(e):
-                    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_API_BASE_URL") or "<openai-cloud>"
+                    base_url = os.getenv("OPENAI_BASE_URL") or "<openai-cloud>"
                     raise RuntimeError(
                         f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
                         f"Original error: {e}"
