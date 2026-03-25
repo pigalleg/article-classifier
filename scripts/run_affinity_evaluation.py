@@ -20,8 +20,10 @@ Outputs:
 #
 # Run old combined behavior
 # python run_affinity_evaluation.py --mode both --ra-retrieval-mode cosine
+
 import argparse
 import os
+import sys
 import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -30,6 +32,11 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import yaml
+
+# Allow direct execution from scripts/ (python run_affinity_evaluation.py)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from src.models.embeddings import EmbeddingModel
 from src.models.classifier import RAClassifier
@@ -110,8 +117,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--prp-top-n",
         type=int,
-        default=_as_int(AFFINITY_DEFAULTS.get("prp_top_n"), 2),
-        help="Number of top PRPs per abstract to use for routing (default: 2)",
+        default=_as_int(AFFINITY_DEFAULTS.get("prp_top_n"), 6),
+        help="Number of top PRPs per abstract to use for routing (default: 6)",
     )
     parser.add_argument(
         "--prp-min-affinity",

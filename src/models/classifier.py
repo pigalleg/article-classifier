@@ -98,7 +98,7 @@ class RAClassifier:
                 try:
                     sim_val = float(cos_scores[idx_int])
                 except Exception:
-                    sim_val = float(np.array(cos_scores)[idx_int])
+                    sim_val = float(self._to_numpy(cos_scores).reshape(-1)[idx_int])
 
             cand = {
                 "RA2025_ID": str(row["RA2025"]),
@@ -147,13 +147,14 @@ class RAClassifier:
                 cos_scores = util.cos_sim(abs_emb, self.ra_embeddings)[0]
             except Exception:
                 # final fallback: compute via numpy
-                ra_embs = np.array(self.ra_embeddings)
-                q = np.array(abs_emb[0]) if isinstance(abs_emb, (list, tuple)) else np.array(abs_emb)
+                ra_embs = self._to_numpy(self.ra_embeddings)
+                abs_np = self._to_numpy(abs_emb)
+                q = abs_np[0] if getattr(abs_np, "ndim", 1) > 1 else abs_np
                 # cosine similarity
                 denom = np.linalg.norm(ra_embs, axis=1) * (np.linalg.norm(q) + 1e-12)
                 cos_scores = (ra_embs @ q) / denom
 
-        cos_np = np.array(cos_scores)
+        cos_np = self._to_numpy(cos_scores).reshape(-1)
         if mode == "prp_filter":
             if not filtered_indices:
                 return []
