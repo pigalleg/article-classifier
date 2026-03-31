@@ -79,7 +79,7 @@ PATH_DEFAULTS = SETTINGS.get("paths", {})
 MODEL_DEFAULTS = SETTINGS.get("models", {})
 
 DATA_DIR = PATH_DEFAULTS.get("data_processed", "data/processed")
-RESULTS_DIR = PATH_DEFAULTS.get("results", "data/results")
+RESULTS_DIR = os.getenv("AFFINITY_RESULTS_DIR") or PATH_DEFAULTS.get("results", "data/results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 EMBED_MODEL = (
@@ -93,7 +93,6 @@ ABSTRACTS_FILE = _as_str(
     os.getenv("AFFINITY_ABSTRACTS_FILE") or AFFINITY_DEFAULTS.get("abstracts_file"),
     "abstracts_cleaned.csv",
 )
-
 
 def _normalize_id(value: Any) -> str:
     s = str(value).strip()
@@ -286,7 +285,6 @@ def load_prp_routing_map(
     df = df.dropna(subset=["Abstract_Index", "PRP_Name", "LLM_Affinity"]).copy()
     if min_affinity is not None:
         df = df[df["LLM_Affinity"].astype(float) >= float(min_affinity)]
-
     df["_abs_key"] = df["Abstract_Index"].astype(str)
     df["_aff"] = df["LLM_Affinity"].astype(float)
     routing: Dict[str, List[str]] = {}
@@ -317,9 +315,9 @@ def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_id
     )
     # Graceful fallback if PRP-filtered retrieval yields no candidates.
     if not candidates and retrieval_mode in {"prp_filter", "prp_only"}:
+        print(f"Warning: No candidates found with retrieval_mode={retrieval_mode}, falling back to cosine similarity")
         candidates = classifier.get_top_k_candidates(abstract_text, top_k=top_k, retrieval_mode="cosine")
     # Batch all RA candidates into a single LLM call (Structured Batch Prompting)
-    print([cand.get("RA2025_ID") for cand in candidates])
     if candidates:
         ra_targets = [
             {
@@ -424,8 +422,8 @@ def main():
     n = len(abstracts)
     titles = abstracts["Document Title"] if "Document Title" in abstracts.columns else pd.Series([f"doc_{i}" for i in range(n)])
     abs_texts = abstracts["Abstract_Cleaned"].astype(str)
-
     prp_routing_map: Dict[str, List[str]] = {}
+    print(f"Evaluating affinities for {n} abstracts (mode={args.mode}, ra_retrieval_mode={args.ra_retrieval_mode})...")
     if args.mode in {"ra", "both"} and args.ra_retrieval_mode in {"prp_filter", "prp_only"}:
         prp_routing_map = load_prp_routing_map(
             prp_input=args.prp_input,
@@ -435,10 +433,9 @@ def main():
     for i in tqdm(range(n), desc="Evaluating affinities"):
         doc_title = titles.iloc[i]
         src_idx = abstracts.iloc[i]["Source_Index"] if "Source_Index" in abstracts.columns else i
-
         abstract_text = abs_texts.iloc[i]
         if args.mode in {"ra", "both"}:
-            routed_prps = prp_routing_map.get((str(int(src_idx)))) if prp_routing_map else None
+            routed_prps = prp_routing_map.get(str(src_idx)) if prp_routing_map else None
             ra_start = time.perf_counter()
             ra_records = evaluate_ra_affinity_for_abstract(
                 abstract_text,

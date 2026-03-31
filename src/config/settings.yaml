@@ -6,13 +6,13 @@ paths:
 
 runtime:
   affinity:
-    abstracts_file: abstracts_cleaned.csv
-    top_k: 20
+    top_k: 48
     save_every: 2
     mode: both
     ra_retrieval_mode: prp_only
+    abstracts_file: abstracts_cleaned.csv
     prp_input: data/results/prp_affinities.csv
-    prp_top_n: 4 # 6 is the default for PRP, but can be adjusted based on needs
+    prp_top_n: 6 # 6 is the default for PRP, but can be adjusted based on needs
     prp_min_affinity:
     affinity_debug: false
     print_micro_batch_size_on_startup: false
@@ -65,10 +65,10 @@ models:
           backend: local
           model: llama3.1:latest
           enabled: true
-        - name: llama3.1:latest
+        - name: ministral-3:latest
           backend: local
-          model: llama3.1:latest
-          enabled: true
+          model: ministral-3:latest
+          enabled: False
 
 thresholds:
   match_score: 0.5

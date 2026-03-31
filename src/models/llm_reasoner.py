@@ -145,7 +145,7 @@ class LLMReasoner:
             )
         except Exception:
             rpm_val = rpm_default_profile
-        print(f"Requests per minute: {rpm_val}")
+        # print(f"Requests per minute: {rpm_val}")
         self.requests_per_minute = max(0, rpm_val)
         self._min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute > 0 else 0.0
         self._last_request_time = 0.0
@@ -472,9 +472,7 @@ Return your answer in strict JSON format:
             f"{i+1}. [{self._normalize_target_id(t['id'])}] {t['text']}"
             for i, t in enumerate(targets)
         )
-
         prompt = self._build_affinity_prompt(abstract, targets_text, target_type)
-
         for attempt in range(1, self.max_retries + 1):
             try:
                 self._apply_rate_limit()

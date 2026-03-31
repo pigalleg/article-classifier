@@ -64,6 +64,24 @@ You can override the configured model list with environment variables:
 - `AFFINITY_BENCHMARK_MODELS`: comma-separated model IDs (for example `llama3.1:latest,gemma3:27b`)
 - `AFFINITY_BENCHMARK_BACKEND`: force backend for that override list (`local` or `cloud`)
 
+### Run Multi-Model Affinity Benchmark
+
+Run PRP+RA stages for each configured model and isolate outputs per model:
+
+```bash
+python scripts/run_affinity_benchmark.py --mode both --ra-retrieval-mode prp_only
+```
+
+Useful flags:
+- `--continue-on-error` / `--stop-on-error`
+- `--resume` / `--no-resume`
+- `--output-root data/results/affinity_benchmark`
+- `--run-id 20260331_local_benchmark`
+
+Outputs are written under:
+- `data/results/affinity_benchmark/<run_id>/<model_slug>/...`
+- `data/results/affinity_benchmark/<run_id>/benchmark_manifest.csv`
+
 ### Run Affinity Evaluation
 
 Launch affinity evaluation (scored from 0 to 100) for each abstract against each Primary Research Programme (PRP).
