@@ -52,9 +52,9 @@ MODEL_DEFAULTS = SETTINGS.get("models", {})
 def main():
     # Refactored workflow using helper functions for clarity
     def load_config(cfg_path: str):
-        """Read LLM config from YAML and allow environment overrides."""
-        model = os.getenv("OPENAI_MODEL")
-        rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE")
+        """Read LLM config from YAML with local-by-default backend profiles."""
+        model = None
+        rpm = None
 
         try:
             with open(cfg_path, "r") as fh:
@@ -62,12 +62,16 @@ def main():
         except Exception:
             cfg = {}
 
-        model = model or cfg.get("models", {}).get("llm", {}).get("model") or "gpt-4o-mini"
-        rpm = (
-            rpm
-            or cfg.get("models", {}).get("llm", {}).get("requests_per_minute_default_local")
-            or 3
-        )
+        llm_cfg = cfg.get("models", {}).get("llm", {})
+        backend_env_var = str(llm_cfg.get("backend_env_var") or "LLM_BACKEND")
+        model_env_var = str(llm_cfg.get("model_env_var") or "OPENAI_MODEL")
+        rpm_env_var = str(llm_cfg.get("rpm_env_var") or "OPENAI_REQUESTS_PER_MINUTE")
+
+        selected_backend = str(os.getenv(backend_env_var) or llm_cfg.get("default_backend") or "local").strip().lower()
+        active_profile = llm_cfg.get("cloud", {}) if selected_backend == "cloud" else llm_cfg.get("local", {})
+
+        model = os.getenv(model_env_var) or active_profile.get("model") or llm_cfg.get("model") or "gpt-4o-mini"
+        rpm = os.getenv(rpm_env_var) or active_profile.get("requests_per_minute_default") or 3
 
         try:
             rpm = int(rpm)

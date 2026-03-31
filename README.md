@@ -34,6 +34,9 @@ pip install -r requirements.txt
 
 ### Choose LLM backend
 
+Default behavior: scripts use local Ollama settings from `src/config/settings.yaml`.
+Switch to cloud explicitly by sourcing the cloud env script.
+
 **Linux / macOS:**
 ```bash
 source scripts/env_local_ollama.sh
@@ -47,6 +50,19 @@ scripts\env_local_ollama.bat
 # or
 scripts\env_cloud.bat
 ```
+
+Notes:
+- `scripts/env_cloud.*` sets `LLM_BACKEND=cloud`.
+- `scripts/env_local_ollama.*` sets `LLM_BACKEND=local` and clears runtime overrides so local profile defaults in settings are used.
+- You can still override model/base URL/rate limit through env vars (`OPENAI_MODEL`, `OPENAI_BASE_URL`, `OPENAI_REQUESTS_PER_MINUTE`, `OPENAI_API_KEY`).
+
+### Model List For Multi-Model Affinity Evaluation
+
+Model profiles for benchmarking are stored in `src/config/settings.yaml` under `models.llm.benchmark.models`.
+
+You can override the configured model list with environment variables:
+- `AFFINITY_BENCHMARK_MODELS`: comma-separated model IDs (for example `llama3.1:latest,gemma3:27b`)
+- `AFFINITY_BENCHMARK_BACKEND`: force backend for that override list (`local` or `cloud`)
 
 ### Run Affinity Evaluation
 

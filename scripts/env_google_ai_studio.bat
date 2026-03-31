@@ -2,6 +2,9 @@
 REM Usage: env_google_ai_studio.bat
 REM Configures OpenAI-compatible endpoint for Google AI Studio (Gemini).
 
+REM Force cloud backend
+set LLM_BACKEND=cloud
+
 REM Clear any previous local backend override (e.g., Ollama)
 set OPENAI_BASE_URL=
 
@@ -18,4 +21,4 @@ if not defined GOOGLE_API_KEY (
 
 REM OpenAI-compatible endpoint for Google AI Studio.
 set OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-echo Google AI Studio LLM env set: base=%OPENAI_BASE_URL%
+echo Google AI Studio LLM env set: backend=%LLM_BACKEND%, base=%OPENAI_BASE_URL%

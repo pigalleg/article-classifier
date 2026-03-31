@@ -66,6 +66,13 @@ def _as_int(value, default: int) -> int:
         return int(default)
 
 
+def _as_str(value, default: str) -> str:
+    if value is None:
+        return str(default)
+    s = str(value).strip()
+    return s if s else str(default)
+
+
 SETTINGS = _load_settings(CFG_PATH)
 AFFINITY_DEFAULTS = SETTINGS.get("runtime", {}).get("affinity", {})
 PATH_DEFAULTS = SETTINGS.get("paths", {})
@@ -82,6 +89,10 @@ EMBED_MODEL = (
 )
 TOP_K = _as_int(os.getenv("AFFINITY_TOP_K") or AFFINITY_DEFAULTS.get("top_k"), 5)
 SAVE_EVERY = _as_int(os.getenv("SAVE_EVERY") or AFFINITY_DEFAULTS.get("save_every"), 50)
+ABSTRACTS_FILE = _as_str(
+    os.getenv("AFFINITY_ABSTRACTS_FILE") or AFFINITY_DEFAULTS.get("abstracts_file"),
+    "abstracts_cleaned.csv",
+)
 
 
 def _normalize_id(value: Any) -> str:
@@ -130,25 +141,50 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_config(cfg_path: str):
-    """Read LLM config from env or YAML. Env has priority.
-    Supports OPENAI_MODEL / OPENAI_REQUESTS_PER_MINUTE; falls back to cfg.models.llm.*.
-    """
-    # primary env vars (harmonized with run_classification.py)
-    model = os.getenv("OPENAI_MODEL")
-    rpm = os.getenv("OPENAI_REQUESTS_PER_MINUTE")
+    """Read LLM runtime config with local-by-default backend selection.
 
-    model = (
-        model
-        or SETTINGS.get("models", {}).get("llm", {}).get("model")
-        or "gpt-4o-mini"
-    )
-    rpm = rpm or SETTINGS.get("models", {}).get("llm", {}).get("requests_per_minute_default_local")
+    Priority order:
+    1) Explicit env overrides (names configurable in settings).
+    2) Active backend profile (local/cloud) from settings.
+    3) Generic fallbacks.
+    """
+    llm_cfg = SETTINGS.get("models", {}).get("llm", {})
+
+    backend_env_var = _as_str(llm_cfg.get("backend_env_var"), "LLM_BACKEND")
+    model_env_var = _as_str(llm_cfg.get("model_env_var"), "OPENAI_MODEL")
+    base_url_env_var = _as_str(llm_cfg.get("base_url_env_var"), "OPENAI_BASE_URL")
+    api_key_env_var = _as_str(llm_cfg.get("api_key_env_var"), "OPENAI_API_KEY")
+    rpm_env_var = _as_str(llm_cfg.get("rpm_env_var"), "OPENAI_REQUESTS_PER_MINUTE")
+
+    selected_backend = _as_str(
+        os.getenv(backend_env_var) or llm_cfg.get("default_backend"),
+        "local",
+    ).lower()
+    active_profile = llm_cfg.get("cloud", {}) if selected_backend == "cloud" else llm_cfg.get("local", {})
+
+    model = os.getenv(model_env_var) or active_profile.get("model") or llm_cfg.get("model") or "gpt-4o-mini"
+    base_url = os.getenv(base_url_env_var)
+    if base_url is None:
+        base_url = active_profile.get("base_url")
+    if isinstance(base_url, str):
+        base_url = base_url.strip() or None
+
+    api_key = os.getenv(api_key_env_var)
+    profile_api_key_env = active_profile.get("api_key_env")
+    if api_key is None and profile_api_key_env:
+        api_key = os.getenv(str(profile_api_key_env))
+    if api_key is None:
+        api_key = active_profile.get("api_key")
+
+    rpm = os.getenv(rpm_env_var)
+    if rpm is None:
+        rpm = active_profile.get("requests_per_minute_default")
     rpm = _as_int(rpm, 3)
-    return model, rpm
+    return model, rpm, base_url, api_key
 
 
 def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Optional[str]]:
-    abs_path = Path(DATA_DIR) / "abstracts_cleaned.csv"
+    abs_path = Path(DATA_DIR) / ABSTRACTS_FILE
     ra_path = Path(DATA_DIR) / "ra_questions_cleaned.csv"
     prp_path = Path(DATA_DIR) / "primary_programmes.csv"
 
@@ -165,7 +201,7 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Option
 
     # expected columns (be tolerant with names produced by prepare_data.py)
     if "Abstract_Cleaned" not in abstracts.columns:
-        raise ValueError("abstracts_cleaned.csv must contain 'Abstract_Cleaned'")
+        raise ValueError(f"{ABSTRACTS_FILE} must contain 'Abstract_Cleaned'")
     if "Question_Cleaned" not in ra.columns or "RA2025" not in ra.columns:
         raise ValueError("ra_questions_cleaned.csv must contain 'RA2025' and 'Question_Cleaned'")
 
@@ -189,8 +225,14 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Option
 def init_models(ra_df: pd.DataFrame) -> tuple[EmbeddingModel, RAClassifier, LLMReasoner]:
     embedder = EmbeddingModel(model_name=EMBED_MODEL)
     classifier = RAClassifier(embedder, ra_df, text_column="Question_Cleaned")
-    llm_model, rpm = load_config(CFG_PATH)
-    reasoner = LLMReasoner(model=llm_model, temperature=0.0, requests_per_minute=rpm)
+    llm_model, rpm, base_url, api_key = load_config(CFG_PATH)
+    reasoner = LLMReasoner(
+        model=llm_model,
+        temperature=0.0,
+        requests_per_minute=rpm,
+        base_url=base_url,
+        api_key=api_key,
+    )
     return embedder, classifier, reasoner
 
 
@@ -273,12 +315,11 @@ def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_id
         retrieval_mode=retrieval_mode,
         top_programmes=top_programmes,
     )
-
     # Graceful fallback if PRP-filtered retrieval yields no candidates.
     if not candidates and retrieval_mode in {"prp_filter", "prp_only"}:
         candidates = classifier.get_top_k_candidates(abstract_text, top_k=top_k, retrieval_mode="cosine")
-
     # Batch all RA candidates into a single LLM call (Structured Batch Prompting)
+    print([cand.get("RA2025_ID") for cand in candidates])
     if candidates:
         ra_targets = [
             {
@@ -391,14 +432,13 @@ def main():
             top_n=args.prp_top_n,
             min_affinity=args.prp_min_affinity,
         )
-
     for i in tqdm(range(n), desc="Evaluating affinities"):
         doc_title = titles.iloc[i]
         src_idx = abstracts.iloc[i]["Source_Index"] if "Source_Index" in abstracts.columns else i
 
         abstract_text = abs_texts.iloc[i]
         if args.mode in {"ra", "both"}:
-            routed_prps = prp_routing_map.get(str(src_idx), []) if prp_routing_map else None
+            routed_prps = prp_routing_map.get((str(int(src_idx)))) if prp_routing_map else None
             ra_start = time.perf_counter()
             ra_records = evaluate_ra_affinity_for_abstract(
                 abstract_text,

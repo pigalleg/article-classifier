@@ -48,6 +48,17 @@ def _as_float(value, default: float) -> float:
     except Exception:
         return float(default)
 
+
+def _as_str(value, default: str) -> str:
+    if value is None:
+        return str(default)
+    s = str(value).strip()
+    return s if s else str(default)
+
+
+def _is_backend_cloud(value: str) -> bool:
+    return _as_str(value, "local").lower() == "cloud"
+
 class LLMReasoner:
     """Uses an LLM (GPT) to select the best RA question among candidates.
 
@@ -65,32 +76,63 @@ class LLMReasoner:
         """
         affinity_defaults, reasoner_defaults, model_defaults = _load_reasoner_settings()
 
-        # Resolve endpoint and credentials
-        base_url = base_url or os.getenv("OPENAI_BASE_URL")
-        api_key = api_key or os.getenv("OPENAI_API_KEY")
+        # Resolve endpoint/backend and credentials from settings with env overrides.
+        backend_env_var = _as_str(model_defaults.get("backend_env_var"), "LLM_BACKEND")
+        model_env_var = _as_str(model_defaults.get("model_env_var"), "OPENAI_MODEL")
+        base_url_env_var = _as_str(model_defaults.get("base_url_env_var"), "OPENAI_BASE_URL")
+        api_key_env_var = _as_str(model_defaults.get("api_key_env_var"), "OPENAI_API_KEY")
+        rpm_env_var = _as_str(model_defaults.get("rpm_env_var"), "OPENAI_REQUESTS_PER_MINUTE")
+
+        configured_backend = _as_str(model_defaults.get("default_backend"), "local")
+        selected_backend = os.getenv(backend_env_var) or configured_backend
+        use_cloud_backend = _is_backend_cloud(selected_backend)
+        active_profile = model_defaults.get("cloud", {}) if use_cloud_backend else model_defaults.get("local", {})
+
+        env_base_url = os.getenv(base_url_env_var)
+        profile_base_url = active_profile.get("base_url")
+        resolved_base_url = base_url if base_url is not None else (env_base_url if env_base_url is not None else profile_base_url)
+        if isinstance(resolved_base_url, str):
+            resolved_base_url = resolved_base_url.strip() or None
+
+        profile_api_key = active_profile.get("api_key")
+        profile_api_key_env = active_profile.get("api_key_env")
+        env_api_key = os.getenv(api_key_env_var)
+        if env_api_key is None and profile_api_key_env:
+            env_api_key = os.getenv(str(profile_api_key_env))
+        resolved_api_key = api_key if api_key is not None else (env_api_key if env_api_key is not None else profile_api_key)
+
         timeout = _as_int(timeout, _as_int(reasoner_defaults.get("timeout_seconds"), 60))
 
         # Build client (OpenAI SDK is compatible with base_url + api_key)
-        if base_url:
-            self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+        if resolved_base_url:
+            self.client = OpenAI(base_url=resolved_base_url, api_key=resolved_api_key, timeout=timeout)
         else:
-            self.client = OpenAI(api_key=api_key, timeout=timeout)
+            self.client = OpenAI(api_key=resolved_api_key, timeout=timeout)
+
+        self.backend = "cloud" if use_cloud_backend else "local"
 
         # Model and runtime params
+        profile_model = active_profile.get("model")
         self.model = (
             model
-            or os.getenv("OPENAI_MODEL")
+            or os.getenv(model_env_var)
+            or profile_model
             or model_defaults.get("model")
             or "gpt-4o-mini"
         )
+        print(f"Using backend: {self.backend}")
         print(f"Using model: {self.model}")
         self.temperature = _as_float(temperature, _as_float(reasoner_defaults.get("temperature"), 0.3))
         self.max_retries = _as_int(max_retries, _as_int(reasoner_defaults.get("max_retries"), 3))
 
         # Rate limiting (requests per minute)
-        rpm_env = os.getenv("OPENAI_REQUESTS_PER_MINUTE")
+        rpm_env = os.getenv(rpm_env_var)
         rpm_default_cloud = _as_int(reasoner_defaults.get("requests_per_minute_default_cloud"), 3)
         rpm_default_local = _as_int(reasoner_defaults.get("requests_per_minute_default_local"), 9999)
+        rpm_default_profile = _as_int(
+            active_profile.get("requests_per_minute_default"),
+            rpm_default_cloud if use_cloud_backend else rpm_default_local,
+        )
         try:
             rpm_val = int(
                 requests_per_minute
@@ -98,11 +140,11 @@ class LLMReasoner:
                 else (
                     rpm_env
                     if rpm_env is not None
-                    else (rpm_default_local if base_url else rpm_default_cloud)
+                    else rpm_default_profile
                 )
             )
         except Exception:
-            rpm_val = rpm_default_local if base_url else rpm_default_cloud
+            rpm_val = rpm_default_profile
         print(f"Requests per minute: {rpm_val}")
         self.requests_per_minute = max(0, rpm_val)
         self._min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute > 0 else 0.0

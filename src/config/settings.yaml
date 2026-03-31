@@ -6,12 +6,13 @@ paths:
 
 runtime:
   affinity:
-    top_k: 10
+    abstracts_file: abstracts_cleaned.csv
+    top_k: 20
     save_every: 2
     mode: both
     ra_retrieval_mode: prp_only
     prp_input: data/results/prp_affinities.csv
-    prp_top_n: 6 # 6 is the default for PRP, but can be adjusted based on needs
+    prp_top_n: 4 # 6 is the default for PRP, but can be adjusted based on needs
     prp_min_affinity:
     affinity_debug: false
     print_micro_batch_size_on_startup: false
@@ -26,8 +27,48 @@ runtime:
 models:
   embedding_model: all-mpnet-base-v2
   llm:
-    model: gpt-4o-mini
-    requests_per_minute_default_local: 3
+    # Global backend selector. Supported values: local, cloud
+    # Can be overridden with env var LLM_BACKEND.
+    default_backend: local
+
+    # Environment variable names used by runtime resolvers.
+    backend_env_var: LLM_BACKEND
+    model_env_var: OPENAI_MODEL
+    base_url_env_var: OPENAI_BASE_URL
+    api_key_env_var: OPENAI_API_KEY
+    rpm_env_var: OPENAI_REQUESTS_PER_MINUTE
+
+    # Local OpenAI-compatible backend defaults (Ollama).
+    local:
+      base_url: http://localhost:11434/v1
+      api_key: ollama
+      model: llama3.1:latest
+      requests_per_minute_default: 9999
+
+    # Cloud backend defaults.
+    cloud:
+      model: gpt-4o-mini
+      # Keep null to use SDK/provider default base URL.
+      base_url:
+      # Name of env var that holds the cloud key.
+      api_key_env: OPENAI_API_KEY
+      requests_per_minute_default: 20
+
+    # Models used by affinity multi-model benchmarking.
+    # Orchestrators can override this list with AFFINITY_BENCHMARK_MODELS
+    # (comma-separated model IDs), and backend with AFFINITY_BENCHMARK_BACKEND.
+    benchmark:
+      models_env_var: AFFINITY_BENCHMARK_MODELS
+      backend_env_var: AFFINITY_BENCHMARK_BACKEND
+      models:
+        - name: llama3.1:latest
+          backend: local
+          model: llama3.1:latest
+          enabled: true
+        - name: llama3.1:latest
+          backend: local
+          model: llama3.1:latest
+          enabled: true
 
 thresholds:
   match_score: 0.5

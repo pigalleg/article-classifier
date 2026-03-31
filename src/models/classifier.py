@@ -108,6 +108,56 @@ class RAClassifier:
             candidates.append(cand)
         return candidates
 
+    def _rank_indices_by_programme_affinity(
+        self,
+        indices: list[int],
+        top_programmes: list[str] | None,
+        cos_scores=None,
+    ) -> list[int]:
+        """Order indices by PRP affinity order implied by top_programmes.
+
+        top_programmes is expected to be ordered by descending PRP affinity.
+        Candidates are sorted primarily by this order and secondarily by cosine
+        (if provided) for deterministic tie-breaking.
+        """
+        if not indices:
+            return []
+        if not top_programmes:
+            return list(indices)
+
+        ordered_programmes = [str(p).strip().lower() for p in top_programmes if str(p).strip()]
+        if not ordered_programmes:
+            return list(indices)
+
+        rank_map = {name: rank for rank, name in enumerate(ordered_programmes)}
+        cos_np = self._to_numpy(cos_scores).reshape(-1) if cos_scores is not None else None
+
+        decorated = []
+        for idx_int in indices:
+            row = self.ra_df.iloc[idx_int]
+            primary = self._first_nonempty(row, self.primary_cols)
+            secondary = self._first_nonempty(row, self.secondary_cols)
+            values = [str(v).strip().lower() for v in [primary, secondary] if v is not None]
+            ranks = [rank_map[v] for v in values if v in rank_map]
+            if not ranks:
+                continue
+
+            programme_rank = min(ranks)
+            if cos_np is not None:
+                try:
+                    cos_val = float(cos_np[idx_int])
+                except Exception:
+                    cos_val = -1.0
+            else:
+                cos_val = -1.0
+
+            # Lower programme rank is better (higher PRP affinity).
+            # Higher cosine is better within same programme rank.
+            decorated.append((programme_rank, -cos_val, int(idx_int)))
+
+        decorated.sort(key=lambda x: (x[0], x[1], x[2]))
+        return [idx for _, _, idx in decorated]
+
     def get_top_k_candidates(
         self,
         abstract: str,
@@ -118,13 +168,13 @@ class RAClassifier:
         """Return top-k RA candidates.
 
         retrieval_mode:
-        - cosine: rank globally by cosine similarity
-        - prp_filter: filter by top_programmes then rank by cosine within subset
-        - prp_only: return first top_k rows in programme-filtered subset (no cosine ranking)
+        - cosine: rank globally (ignores prp_top_n) by cosine similarity
+                - prp_filter: filter by top_programmes (prp_top_n), select top_k by PRP affinity
+                    order, then order selected candidates by cosine similarity
+                - prp_only: filter by top_programmes (prp_top_n), select top_k by PRP affinity order only
         """
         if not isinstance(abstract, str) or not abstract.strip():
             return []
-
         mode = str(retrieval_mode or "cosine").strip().lower()
         if mode not in {"cosine", "prp_filter", "prp_only"}:
             raise ValueError(f"Unsupported retrieval_mode: {retrieval_mode}")
@@ -133,7 +183,12 @@ class RAClassifier:
         if mode == "prp_only":
             if not filtered_indices:
                 return []
-            return self._build_candidates(filtered_indices[:top_k], cos_scores=None)
+            ranked = self._rank_indices_by_programme_affinity(
+                filtered_indices,
+                top_programmes=top_programmes,
+                cos_scores=None,
+            )
+            return self._build_candidates(ranked[:top_k], cos_scores=None)
 
         abs_emb = self.embedder.embed_texts([abstract])
         cos_scores = None
@@ -158,8 +213,17 @@ class RAClassifier:
         if mode == "prp_filter":
             if not filtered_indices:
                 return []
-            ranked = sorted(filtered_indices, key=lambda i: float(cos_np[i]), reverse=True)
-            return self._build_candidates(ranked[:top_k], cos_scores=cos_np)
+            # 1) shortlist by PRP affinity rank
+            ranked_by_prp_affinity = self._rank_indices_by_programme_affinity(
+                filtered_indices,
+                top_programmes=top_programmes,
+                cos_scores=None,
+            )
+            shortlisted = ranked_by_prp_affinity[:top_k]
+
+            # 2) order shortlisted candidates by cosine
+            ranked = sorted(shortlisted, key=lambda i: float(cos_np[i]), reverse=True)
+            return self._build_candidates(ranked, cos_scores=cos_np)
 
         ranked = cos_np.argsort()[::-1][:top_k]
         return self._build_candidates([int(i) for i in ranked], cos_scores=cos_np)
