@@ -30,25 +30,32 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-`pip` will install the `openai` Python package for cloud LLM backends. For local LLMs, install [Ollama](https://ollama.com/) separately.
+`pip` will install the `openai` Python package for cloud LLM backends. 
+
+### Installing Ollama
+Ollama is needed to run local LLMs. Download and install it from [here](https://ollama.com/download/), and pull any model via command line.
+
+```bash
+ollama pull [model_name]
+```
 
 ### Choose LLM backend
 
 Default behavior: scripts use local Ollama settings from `src/config/settings.yaml`.
-Switch to cloud explicitly by sourcing the cloud env script.
+Switch between cloud and local by sourcing the cloud/local env scripts.
 
 **Linux / macOS:**
 ```bash
-source scripts/env_local_ollama.sh
-# or
 source scripts/env_cloud.sh
+# or
+source scripts/env_local_ollama.sh
 ```
 
 **Windows:**
 ```cmd
-scripts\env_local_ollama.bat
-# or
 scripts\env_cloud.bat
+<!-- or -->
+scripts\env_local_ollama.bat
 ```
 
 Notes:
