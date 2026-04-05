@@ -39,6 +39,60 @@ Ollama is needed to run local LLMs. Download and install it from [here](https://
 ollama pull [model_name]
 ```
 
+### Enable GPU in Ollama (Linux/WSL)
+
+1. Verify your GPU is visible in Linux:
+
+```bash
+nvidia-smi
+```
+
+2. Source local Ollama env (now GPU-aware):
+
+```bash
+source scripts/env_local_ollama.sh
+```
+
+3. Restart Ollama so runtime changes take effect:
+
+```bash
+pkill ollama || true
+ollama serve
+```
+
+4. In a second terminal, run a test prompt and check processor:
+
+```bash
+ollama run llama3.1:latest "Say hello"
+ollama ps
+```
+
+`ollama ps` should show the model processor as GPU (or mostly GPU).
+
+For explicit GPU toggle scripts:
+
+```bash
+scripts/enable_ollama_gpu.sh
+```
+
+Optional runtime override and model selection when enabling:
+
+```bash
+scripts/enable_ollama_gpu.sh cuda_v12 llama3.1:latest
+```
+
+If you want to use a specific model without specifying a runtime:
+
+```bash
+scripts/enable_ollama_gpu.sh llama3.1:latest
+```
+
+To disable GPU (force CPU):
+
+```bash
+scripts/disable_ollama_gpu.sh
+```
+
 ### Choose LLM backend
 
 Default behavior: scripts use local Ollama settings from `src/config/settings.yaml`.

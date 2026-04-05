@@ -37,7 +37,14 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 CFG_PATH = REPO_ROOT / "src" / "config" / "settings.yaml"
+
+try:
+    from scripts.util.ollama_gpu import _describe_ollama_gpu_state
+except ModuleNotFoundError:
+    from util.ollama_gpu import _describe_ollama_gpu_state
 
 
 def _load_settings(path: Path) -> dict[str, Any]:
@@ -202,6 +209,7 @@ def _write_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
         "model_name",
         "model",
         "backend",
+        "ollama_gpu_state",
         "status",
         "mode",
         "ra_retrieval_mode",
@@ -285,6 +293,7 @@ def main() -> None:
 
     print(f"Benchmark run directory: {run_dir}")
     print(f"Models to run: {len(profiles)}")
+    print(f"Ollama GPU state at launch: {_describe_ollama_gpu_state()}")
 
     if args.dry_run:
         for p in profiles:
@@ -304,6 +313,7 @@ def main() -> None:
             "model_name": profile.name,
             "model": profile.model,
             "backend": profile.backend,
+            "ollama_gpu_state": _describe_ollama_gpu_state(),
             "status": "success",
             "mode": args.mode,
             "ra_retrieval_mode": args.ra_retrieval_mode,

@@ -22,6 +22,7 @@ Outputs:
 # python run_affinity_evaluation.py --mode both --ra-retrieval-mode cosine
 
 import argparse
+from importlib import import_module
 import os
 import sys
 import time
@@ -47,6 +48,8 @@ try:
 except ModuleNotFoundError:
     # Works when executed directly from inside scripts/.
     from util.execution_time_logger import AffinityTimingLogger
+
+_describe_ollama_gpu_state = import_module("scripts.util.ollama_gpu")._describe_ollama_gpu_state
 
 CFG_PATH = os.path.join("src", "config", "settings.yaml")
 
@@ -401,6 +404,7 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
 
 def main():
     args = parse_args()
+    print(f"Ollama GPU state at launch: {_describe_ollama_gpu_state()}")
     timing_logger = AffinityTimingLogger.from_results_dir(RESULTS_DIR)
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
