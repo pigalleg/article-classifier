@@ -8,6 +8,7 @@ import json
 import time
 import re
 import os
+from datetime import datetime
 from pathlib import Path
 import difflib
 
@@ -154,12 +155,6 @@ class LLMReasoner:
         debug_env = os.getenv("AFFINITY_DEBUG")
         self.affinity_debug = _as_bool(debug_env, _as_bool(affinity_defaults.get("affinity_debug"), False))
 
-        print_mbs_env = os.getenv("AFFINITY_PRINT_MICRO_BATCH_SIZE")
-        self.print_micro_batch_size_on_startup = _as_bool(
-            print_mbs_env,
-            _as_bool(affinity_defaults.get("print_micro_batch_size_on_startup"), False),
-        )
-
         # Micro-batching for affinity evaluation (targets per API call)
         # Env var: AFFINITY_MICRO_BATCH_SIZE (default: 10)
         mbs_env = os.getenv("AFFINITY_MICRO_BATCH_SIZE")
@@ -173,8 +168,6 @@ class LLMReasoner:
         except Exception:
             mbs_val = mbs_default
         self.micro_batch_size = max(1, mbs_val)
-        if self.print_micro_batch_size_on_startup:
-            print(f"Micro-batch size: {self.micro_batch_size}")
 
     @staticmethod
     def _is_model_unavailable_error(err: Exception) -> bool:
@@ -433,28 +426,77 @@ Return your answer in strict JSON format:
 
         return out
 
-    def _build_affinity_prompt(self, abstract: str, targets_text: str, target_type: str) -> str:
+    def _build_affinity_prompt(
+        self,
+        abstract: str,
+        targets_text: str,
+        target_type: str,
+        required_ids: list[str],
+    ) -> str:
         """Build prompt for affinity evaluation."""
+        required_ids_text = ", ".join(required_ids)
         if target_type == "PRP":
             return (
-                "You are evaluating how strongly a research abstract relates to multiple Primary Research Programmes.\n"
-                "For each programme below, rate the degree of relation on a scale from 0 to 100 "
-                "(100 = totally related, 0 = not related at all).\n"
-                "Return ONLY a JSON object with no extra text, using the EXACT bracketed IDs as keys.\n\n"
+                "Evaluate PRP affinities for the abstract. "
+                "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
+                "Return ONLY one JSON object (no extra text).\n"
+                "Rules:\n"
+                "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
+                "- Values must be numbers in [0,100].\n"
+                f"Required IDs: {required_ids_text}\n"
                 f"Abstract:\n{abstract}\n\n"
                 f"Primary Research Programmes:\n{targets_text}\n\n"
-                "Return format example: {\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}"
+                "Output JSON example:\n"
+                "{\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}\n\n"
             )
         else:  # RA type
             return (
-                "You are evaluating how strongly a research abstract relates to multiple Research Agenda 2025 questions.\n"
-                "For each question below, rate the degree of relation on a scale from 0 to 100 "
-                "(100 = totally related, 0 = not related at all).\n"
-                "Return ONLY a JSON object with no extra text, using the EXACT bracketed IDs as keys.\n\n"
+                "Evaluate RA question affinities for the abstract. "
+                "Score the abstract’s relevance to the research question from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the questions’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the questions’s core problem); 71–100 = High relevance (directly and substantially addresses the questions’s main objectives).\n"
+                "Return ONLY one JSON object (no extra text).\n"
+                "Rules:\n"
+                "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
+                "- Values must be numbers in [0,100].\n"
+                f"Required IDs: {required_ids_text}\n"
                 f"Abstract:\n{abstract}\n\n"
-                f"Research Agenda Questions:\n{targets_text}\n\n"
-                "Return format example: {\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}"
+                f"Research questions:\n{targets_text}\n\n"
+                "Output JSON example:\n"
+                "{\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}\n\n"
             )
+
+    def _build_prp_scope_prompt(
+        self,
+        abstract: str,
+        targets_text: str,
+        general_prp_description: str,
+        required_ids: list[str],
+    ) -> str:
+        """Build a PRP prompt that includes explicit in-scope/out-of-scope metadata."""
+        required_ids_text = ", ".join(required_ids)
+        return (
+            "Evaluate PRP scope and PRP affinities for the abstract. "
+            "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
+            "An abstract can be outside PRP scope.\n\n"
+            "Return ONLY one JSON object (no extra text) with this schema:\n"
+            "{\n"
+            "  \"belongs_any_prp\": true,\n"
+            "  \"membership_confidence\": 0,\n"
+            "  \"affinity_scores\": {\n"
+            "    \"<ID_FROM_INPUT_1>\": 0,\n"
+            "    \"<ID_FROM_INPUT_2>\": 0\n"
+            "  }\n"
+            "}\n\n"
+            "Rules:\n"
+            "- belongs_any_prp: boolean.\n"
+            "- membership_confidence: number in [0,100], and >0 if belongs_any_prp=true.\n"
+            "- affinity_scores: include ALL required IDs exactly once; do not add or rename keys.\n"
+            "- affinity_scores values: numbers in [0,100].\n"
+            f"Required IDs: {required_ids_text}\n\n"
+            f"Abstract:\n{abstract}\n\n"
+            f"General PRP description (scope anchor):\n{general_prp_description}\n\n"
+            f"Primary Research Programmes:\n{targets_text}\n\n"
+            
+        )
 
     @staticmethod
     def _chunk_targets(targets: list, chunk_size: int) -> list:
@@ -468,11 +510,21 @@ Return your answer in strict JSON format:
         if not abstract or not targets:
             return {}
 
+        normalized_targets = [
+            {
+                "id": self._normalize_target_id(t.get("id")),
+                "text": str(t.get("text", "")),
+            }
+            for t in targets
+        ]
         targets_text = "\n".join(
-            f"{i+1}. [{self._normalize_target_id(t['id'])}] {t['text']}"
-            for i, t in enumerate(targets)
+            f"{i+1}. [{t['id']}] {t['text']}"
+            for i, t in enumerate(normalized_targets)
         )
-        prompt = self._build_affinity_prompt(abstract, targets_text, target_type)
+        required_ids = [t["id"] for t in normalized_targets]
+        prompt = self._build_affinity_prompt(abstract, targets_text, target_type, required_ids)
+        if self.affinity_debug:
+            print(f"[rate_affinity_batch] prompt:\n{prompt}")
         for attempt in range(1, self.max_retries + 1):
             try:
                 self._apply_rate_limit()
@@ -551,7 +603,6 @@ Return your answer in strict JSON format:
                 f"[rate_affinity_batch] targets={len(targets)}, "
                 f"micro_batch_size={self.micro_batch_size}, chunks={len(chunks)}"
             )
-
         for chunk in chunks:
             partial = self._rate_affinity_batch_single_call(
                 abstract=abstract,
@@ -561,3 +612,169 @@ Return your answer in strict JSON format:
             combined.update(partial)
 
         return combined
+
+    def parse_prp_batch_response(self, data: dict, targets: list) -> dict:
+        """Parse and validate strict PRP scope response payload."""
+        if not isinstance(data, dict):
+            raise ValueError("PRP scope response must be a JSON object")
+
+        if "belongs_any_prp" not in data or not isinstance(data["belongs_any_prp"], bool):
+            raise ValueError("Missing or invalid 'belongs_any_prp' (bool required)")
+
+        if "membership_confidence" not in data:
+            raise ValueError("Missing 'membership_confidence'")
+        try:
+            membership_confidence = float(data["membership_confidence"])
+        except Exception as e:
+            raise ValueError("Invalid 'membership_confidence' (numeric required)") from e
+        membership_confidence = max(0.0, min(100.0, membership_confidence))
+
+        affinity_scores_raw = data.get("affinity_scores")
+        if not isinstance(affinity_scores_raw, dict):
+            raise ValueError("Missing or invalid 'affinity_scores' (object required)")
+
+        scores = self._normalize_batch_scores(affinity_scores_raw, targets)
+        expected_ids = [self._normalize_target_id(t.get("id")) for t in targets]
+        id_to_text = {
+            self._normalize_target_id(t.get("id")): str(t.get("text", ""))
+            for t in targets
+        }
+
+        missing_ids = [tid for tid in expected_ids if tid not in scores]
+        if missing_ids:
+            missing_questions = [{"id": tid, "text": id_to_text.get(tid, "")} for tid in missing_ids]
+            raise ValueError(f"Missing affinity scores for targets: {missing_questions}")
+
+        invalid_ids = [tid for tid, val in scores.items() if val is None]
+        if invalid_ids:
+            invalid_questions = [{"id": tid, "text": id_to_text.get(tid, "")} for tid in invalid_ids]
+            raise ValueError(f"Invalid affinity values for targets: {invalid_questions}")
+
+        return {
+            "belongs_any_prp": data["belongs_any_prp"],
+            "membership_confidence": membership_confidence,
+            "scores": scores,
+        }
+
+    def _log_prp_scope_failure(
+        self,
+        abstract: str,
+        prp_targets: list,
+        reason: str,
+        attempt: int,
+        raw_content: str | None = None,
+    ) -> None:
+        """Append structured PRP scope parsing failures to a JSONL log for auditability."""
+        log_path_raw = os.getenv("AFFINITY_PRP_SCOPE_FAILURE_LOG") or "data/results/prp_scope_failures.jsonl"
+        log_path = Path(log_path_raw)
+        if not log_path.is_absolute():
+            log_path = Path.cwd() / log_path
+
+        entry = {
+            "timestamp_utc": datetime.utcnow().isoformat() + "Z",
+            "model": self.model,
+            "attempt": int(attempt),
+            "reason": str(reason),
+            "abstract_preview": str(abstract)[:600],
+            "targets": [
+                {
+                    "id": self._normalize_target_id(t.get("id")),
+                    "text": str(t.get("text", ""))[:300],
+                }
+                for t in prp_targets
+            ],
+            "raw_content_preview": None if raw_content is None else str(raw_content)[:1200],
+        }
+
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(entry, ensure_ascii=True) + "\n")
+        except Exception as log_err:
+            if self.affinity_debug:
+                print(f"[rate_prp_affinity_with_scope] failed to write failure log: {log_err}")
+
+    def rate_prp_affinity_with_scope(self, abstract: str, prp_targets: list, general_prp_description: str) -> dict:
+        """Rate PRP affinities with strict in-scope/out-of-scope metadata."""
+        if not abstract:
+            raise ValueError("Abstract text cannot be empty for PRP scope evaluation")
+        if not prp_targets:
+            raise ValueError("PRP targets cannot be empty for PRP scope evaluation")
+        if not str(general_prp_description).strip():
+            raise ValueError("General PRP description cannot be empty for PRP scope evaluation")
+
+        normalized_targets = [
+            {
+                "id": self._normalize_target_id(t.get("id")),
+                "text": str(t.get("text", "")),
+            }
+            for t in prp_targets
+        ]
+        targets_text = "\n".join(
+            f"{i+1}. [{t['id']}] {t['text']}"
+            for i, t in enumerate(normalized_targets)
+        )
+        required_ids = [t["id"] for t in normalized_targets]
+        prompt = self._build_prp_scope_prompt(
+            abstract,
+            targets_text,
+            str(general_prp_description).strip(),
+            required_ids,
+        )
+        if self.affinity_debug:
+            print(f"[rate_prp_affinity_with_scope] prompt:\n{prompt}")
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                self._apply_rate_limit()
+
+                resp = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.0,
+                )
+                self._last_request_time = time.time()
+
+                try:
+                    reply = resp.choices[0].message.content.strip()
+                except Exception:
+                    reply = str(resp)
+
+                if self.affinity_debug:
+                    print(f"[rate_prp_affinity_with_scope] raw reply: {reply}")
+
+                json_text = self._extract_json_from_reply(reply)
+                try:
+                    data = json.loads(json_text)
+                    return self.parse_prp_batch_response(data, prp_targets)
+                except (json.JSONDecodeError, ValueError) as e:
+                    self._log_prp_scope_failure(
+                        abstract=abstract,
+                        prp_targets=prp_targets,
+                        reason=str(e),
+                        attempt=attempt,
+                        raw_content=json_text,
+                    )
+                    if self.affinity_debug:
+                        print(f"[rate_prp_affinity_with_scope] parse failed: {e}")
+                        print(f"[rate_prp_affinity_with_scope] raw content: {json_text}")
+                    if attempt < self.max_retries:
+                        time.sleep(2 * attempt)
+                    else:
+                        raise ValueError(f"Failed to parse strict PRP scope response: {e}") from e
+
+            except Exception as e:
+                if self._is_model_unavailable_error(e):
+                    base_url = os.getenv("OPENAI_BASE_URL") or "<openai-cloud>"
+                    raise RuntimeError(
+                        f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
+                        f"Original error: {e}"
+                    ) from e
+
+                if attempt < self.max_retries:
+                    if self.affinity_debug:
+                        print(f"[rate_prp_affinity_with_scope] attempt {attempt} failed: {e}")
+                    time.sleep(2 * attempt)
+                else:
+                    raise
+
+        raise ValueError("PRP scope evaluation failed after retries")

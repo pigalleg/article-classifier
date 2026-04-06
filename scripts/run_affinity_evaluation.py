@@ -69,6 +69,13 @@ def _as_int(value, default: int) -> int:
         return int(default)
 
 
+def _as_float(value, default: float) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return float(default)
+
+
 def _as_str(value, default: str) -> str:
     if value is None:
         return str(default)
@@ -96,6 +103,16 @@ ABSTRACTS_FILE = _as_str(
     os.getenv("AFFINITY_ABSTRACTS_FILE") or AFFINITY_DEFAULTS.get("abstracts_file"),
     "abstracts_cleaned.csv",
 )
+PRP_MEMBERSHIP_CONFIDENCE_MIN = _as_float(
+    os.getenv("AFFINITY_PRP_MEMBERSHIP_CONFIDENCE_MIN")
+    or AFFINITY_DEFAULTS.get("prp_membership_confidence_min"),
+    10.0,
+)
+PRP_SCOPE_FALLBACK_MODE = _as_str(
+    os.getenv("AFFINITY_PRP_SCOPE_FALLBACK_MODE")
+    or AFFINITY_DEFAULTS.get("prp_scope_fallback_mode"),
+    "legacy_scores",
+).lower()
 
 def _normalize_id(value: Any) -> str:
     s = str(value).strip()
@@ -139,7 +156,36 @@ def parse_args() -> argparse.Namespace:
         default=AFFINITY_DEFAULTS.get("prp_min_affinity", None),
         help="Optional minimum PRP affinity threshold for routing",
     )
+    parser.add_argument(
+        "--prp-membership-confidence-min",
+        type=float,
+        default=PRP_MEMBERSHIP_CONFIDENCE_MIN,
+        help="Minimum confidence for considering abstract in-scope for PRP membership",
+    )
+    parser.add_argument(
+        "--prp-scope-fallback-mode",
+        choices=["strict", "legacy_scores"],
+        default=PRP_SCOPE_FALLBACK_MODE,
+        help="Fallback mode when PRP scope JSON is invalid (strict=fail, legacy_scores=use legacy PRP scoring)",
+    )
     return parser.parse_args()
+
+
+def _get_general_prp_description(prp: pd.DataFrame, prp_name_col: str, prp_desc_col: str | None) -> str:
+    if prp_desc_col is None:
+        raise ValueError("PRP description column is required for strict scope-aware PRP evaluation")
+
+    name_series = prp[prp_name_col].astype(str).str.strip().str.lower()
+    general_rows = prp[name_series == "general"]
+    if general_rows.empty:
+        raise ValueError("General PRP row is required for strict scope-aware PRP evaluation")
+
+    desc_values = general_rows[prp_desc_col].dropna().astype(str).str.strip()
+    desc_values = desc_values[desc_values != ""]
+    if desc_values.empty:
+        raise ValueError("General PRP description is required for strict scope-aware PRP evaluation")
+
+    return str(desc_values.iloc[0])
 
 
 def load_config(cfg_path: str):
@@ -219,7 +265,7 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Option
     if prp_desc_col is None:
         prp["PRP_Text"] = prp[prp_name_col].astype(str)
     else:
-        prp["PRP_Text"] = prp[prp_name_col].astype(str) + " — " + prp[prp_desc_col].astype(str)
+        prp["PRP_Text"] = prp[prp_desc_col].astype(str)
 
     return abstracts, ra, prp, prp_name_col, prp_desc_col
 
@@ -238,8 +284,9 @@ def init_models(ra_df: pd.DataFrame) -> tuple[EmbeddingModel, RAClassifier, LLMR
     return embedder, classifier, reasoner
 
 
+# sym:preflight_llm_affinity
 def preflight_llm_affinity(reasoner: LLMReasoner) -> None:
-    """Fail fast if the configured model/backend cannot produce affinity outputs."""
+    """DEPRECATED: retained only for manual diagnostics; not used by the main execution path."""
     base_url = os.getenv("OPENAI_BASE_URL") or "<openai-cloud>"
     try:
         # Reuse the exact affinity path used in the main loop.
@@ -286,6 +333,9 @@ def load_prp_routing_map(
         raise ValueError(f"PRP routing input missing columns: {sorted(missing)}")
 
     df = df.dropna(subset=["Abstract_Index", "PRP_Name", "LLM_Affinity"]).copy()
+    # For PRP-driven retrieval modes, exclude zero-affinity programmes from routing
+    # so RA candidates linked only to zero-affinity PRPs are not retrieved.
+    df = df[df["LLM_Affinity"].astype(float) > 0.0]
     if min_affinity is not None:
         df = df[df["LLM_Affinity"].astype(float) >= float(min_affinity)]
     df["_abs_key"] = df["Abstract_Index"].astype(str)
@@ -355,7 +405,10 @@ def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_id
 
 def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_idx: Any,
                                        prp: pd.DataFrame, prp_name_col: str, prp_desc_col: str | None,
-                                       reasoner: LLMReasoner) -> List[Dict[str, Any]]:
+                                       reasoner: LLMReasoner,
+                                       general_prp_description: str,
+                                       membership_confidence_min: float,
+                                       scope_fallback_mode: str) -> List[Dict[str, Any]]:
     records = []
     
     # Batch all PRP candidates into a single LLM call (Structured Batch Prompting)
@@ -364,6 +417,9 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
     
     for _, prow in prp.iterrows():
         name = prow[prp_name_col]
+        if str(name).strip().lower() == "general":
+            # "General" is used as scope anchor only and is not scored as a PRP target.
+            continue
         desc = prow[prp_desc_col] if prp_desc_col is not None else ""
         prp_text = prow["PRP_Text"]
         target_id = _normalize_id(name)
@@ -379,8 +435,34 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
     
     # Single batch call for all PRPs
     if prp_targets:
-        affinity_scores = reasoner.rate_affinity_batch(abstract_text, prp_targets, target_type="PRP")
+        try:
+            prp_eval = reasoner.rate_prp_affinity_with_scope(
+                abstract=abstract_text,
+                prp_targets=prp_targets,
+                general_prp_description=general_prp_description,
+            )
+            belongs_any_prp = prp_eval["belongs_any_prp"]
+            membership_confidence = float(prp_eval["membership_confidence"])
+            affinity_scores = prp_eval["scores"]
+            out_of_scope = (belongs_any_prp is False) or (membership_confidence < float(membership_confidence_min))
+            if out_of_scope and getattr(reasoner, "affinity_debug", False):
+                print(
+                    f"PRP out-of-scope decision: abstract_index={src_idx}, "
+                    f"title={doc_title}, "
+                    f"Belong to any PRP? {belongs_any_prp}, confidence={membership_confidence:.4f},  threshold {float(membership_confidence_min):.4f}. "
+                )
+        except Exception as e:
+            if scope_fallback_mode == "legacy_scores":
+                print(
+                    f"PRP scope parser failed; using legacy PRP scoring fallback: "
+                    f"abstract_index={src_idx}, title={doc_title}, reason={e}"
+                )
+                affinity_scores = reasoner.rate_affinity_batch(abstract_text, prp_targets, target_type="PRP")
+                out_of_scope = False
+            else:
+                raise
     else:
+        out_of_scope = False
         affinity_scores = {}
     
     # Build records from batch results
@@ -389,7 +471,7 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
         desc = prp_info["desc"]
         target_id = _normalize_id(target_dict["id"])
         
-        llm_aff = affinity_scores.get(target_id)
+        llm_aff = 0.0 if out_of_scope else affinity_scores.get(target_id)
         
         records.append({
             "Abstract_Index": src_idx,
@@ -409,6 +491,9 @@ def main():
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
     _, classifier, reasoner = init_models(ra)
+    general_prp_description = ""
+    if args.mode in {"prp", "both"}:
+        general_prp_description = _get_general_prp_description(prp, prp_name_col, prp_desc_col)
 
     # step_start = time.perf_counter()
     # preflight_llm_affinity(reasoner)
@@ -458,15 +543,25 @@ def main():
 
         if args.mode in {"prp", "both"}:
             prp_start = time.perf_counter()
-            prp_records = evaluate_prp_affinity_for_abstract(
-                abstract_text,
-                doc_title,
-                src_idx,
-                prp,
-                prp_name_col,
-                prp_desc_col,
-                reasoner,
-            )
+            try:
+                prp_records = evaluate_prp_affinity_for_abstract(
+                    abstract_text,
+                    doc_title,
+                    src_idx,
+                    prp,
+                    prp_name_col,
+                    prp_desc_col,
+                    reasoner,
+                    general_prp_description=general_prp_description,
+                    membership_confidence_min=args.prp_membership_confidence_min,
+                    scope_fallback_mode=args.prp_scope_fallback_mode,
+                )
+            except Exception as e:
+                print(
+                    f"PRP evaluation failed: abstract_index={src_idx}, "
+                    f"title={doc_title}, reason={e}"
+                )
+                raise
             prp_elapsed = time.perf_counter() - prp_start
             prp_total_elapsed += prp_elapsed
             prp_total_targets += len(prp_records)

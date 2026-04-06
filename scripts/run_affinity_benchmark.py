@@ -238,6 +238,16 @@ def parse_args(settings: dict[str, Any]) -> argparse.Namespace:
     parser.add_argument("--prp-top-n", type=int, default=_as_int(affinity_cfg.get("prp_top_n"), 6))
     parser.add_argument("--prp-min-affinity", type=float, default=affinity_cfg.get("prp_min_affinity", None))
     parser.add_argument(
+        "--prp-membership-confidence-min",
+        type=float,
+        default=float(affinity_cfg.get("prp_membership_confidence_min", 10.0)),
+    )
+    parser.add_argument(
+        "--prp-scope-fallback-mode",
+        choices=["strict", "legacy_scores"],
+        default=str(affinity_cfg.get("prp_scope_fallback_mode", "legacy_scores")),
+    )
+    parser.add_argument(
         "--output-root",
         default=str(bench_cfg.get("output_root", "data/results/affinity_benchmark")),
         help="Root directory for benchmark outputs",
@@ -263,6 +273,7 @@ def _build_env(profile: ModelProfile, model_output_dir: Path) -> dict[str, str]:
     env["LLM_BACKEND"] = profile.backend
     env["OPENAI_MODEL"] = profile.model
     env["AFFINITY_RESULTS_DIR"] = str(model_output_dir)
+    env["AFFINITY_PRP_SCOPE_FAILURE_LOG"] = str(model_output_dir / "prp_scope_failures.jsonl")
 
     if profile.base_url:
         env["OPENAI_BASE_URL"] = profile.base_url
@@ -293,7 +304,6 @@ def main() -> None:
 
     print(f"Benchmark run directory: {run_dir}")
     print(f"Models to run: {len(profiles)}")
-    print(f"Ollama GPU state at launch: {_describe_ollama_gpu_state()}")
 
     if args.dry_run:
         for p in profiles:
@@ -339,6 +349,10 @@ def main() -> None:
                     "scripts/run_affinity_evaluation.py",
                     "--mode",
                     "prp",
+                    "--prp-membership-confidence-min",
+                    str(args.prp_membership_confidence_min),
+                    "--prp-scope-fallback-mode",
+                    args.prp_scope_fallback_mode,
                 ]
                 _run_stage(cmd, env)
 
