@@ -16,7 +16,7 @@ runtime:
     prp_min_affinity:
     prp_membership_confidence_min: 10
     prp_scope_fallback_mode: legacy_scores # The abstract is scored against all PRPs (including General), and no out-of-scope zeroing rule is applied for that abstract.
-    affinity_debug: false
+    affinity_debug: true
   llm_reasoner:
     temperature: 0
     max_retries: 3

@@ -28,7 +28,7 @@ import json
 
 from src.models.embeddings import EmbeddingModel
 from src.models.classifier import RAClassifier
-from src.models.llm_reasoner import LLMReasoner
+from src.models.llm_classification_reasoner import LLMReasoner
 
 DATA_DIR = "data/processed"
 RESULTS_DIR = "data/results"

@@ -41,7 +41,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.models.embeddings import EmbeddingModel
 from src.models.classifier import RAClassifier
-from src.models.llm_reasoner import LLMReasoner
+from src.models.llm_affinity_reasoner import LLMAffinityReasoner
 try:
     # Works when executed from repo root as a package path.
     from scripts.util.execution_time_logger import AffinityTimingLogger
@@ -296,11 +296,11 @@ def init_models(
     ra_df: pd.DataFrame,
     enable_few_shot: Optional[bool] = None,
     enable_affinity_reasons: Optional[bool] = None,
-) -> tuple[EmbeddingModel, RAClassifier, LLMReasoner]:
+) -> tuple[EmbeddingModel, RAClassifier, LLMAffinityReasoner]:
     embedder = EmbeddingModel(model_name=EMBED_MODEL)
     classifier = RAClassifier(embedder, ra_df, text_column="Question_Cleaned")
     llm_model, rpm, base_url, api_key = load_config(CFG_PATH)
-    reasoner = LLMReasoner(
+    reasoner = LLMAffinityReasoner(
         model=llm_model,
         temperature=0.0,
         requests_per_minute=rpm,
@@ -334,7 +334,7 @@ def _extract_affinity_score_and_reason(value: Any) -> tuple[Optional[float], Opt
 
 
 # sym:preflight_llm_affinity
-def preflight_llm_affinity(reasoner: LLMReasoner) -> None:
+def preflight_llm_affinity(reasoner: LLMAffinityReasoner) -> None:
     """DEPRECATED: retained only for manual diagnostics; not used by the main execution path."""
     base_url = reasoner._endpoint_for_logs() if hasattr(reasoner, "_endpoint_for_logs") else "<openai-cloud>"
     try:
@@ -405,7 +405,7 @@ def load_prp_routing_map(
 
 
 def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_idx: Any,
-                                      classifier: RAClassifier, reasoner: LLMReasoner, top_k: int,
+                                      classifier: RAClassifier, reasoner: LLMAffinityReasoner, top_k: int,
                                       retrieval_mode: str = "cosine",
                                       top_programmes: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     records = []
@@ -456,7 +456,7 @@ def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_id
 
 def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_idx: Any,
                                        prp: pd.DataFrame, prp_name_col: str, prp_desc_col: str | None,
-                                       reasoner: LLMReasoner,
+                                       reasoner: LLMAffinityReasoner,
                                        general_prp_description: str,
                                        membership_confidence_min: float,
                                        scope_fallback_mode: str) -> List[Dict[str, Any]]:
