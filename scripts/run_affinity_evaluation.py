@@ -199,10 +199,10 @@ def load_config(cfg_path: str):
     llm_cfg = SETTINGS.get("models", {}).get("llm", {})
 
     backend_env_var = _as_str(llm_cfg.get("backend_env_var"), "LLM_BACKEND")
-    model_env_var = _as_str(llm_cfg.get("model_env_var"), "OPENAI_MODEL")
-    base_url_env_var = _as_str(llm_cfg.get("base_url_env_var"), "OPENAI_BASE_URL")
-    api_key_env_var = _as_str(llm_cfg.get("api_key_env_var"), "OPENAI_API_KEY")
-    rpm_env_var = _as_str(llm_cfg.get("rpm_env_var"), "OPENAI_REQUESTS_PER_MINUTE")
+    model_env_var = llm_cfg.get("model_env_var")
+    base_url_env_var = llm_cfg.get("base_url_env_var")
+    api_key_env_var = llm_cfg.get("api_key_env_var")
+    rpm_env_var = llm_cfg.get("rpm_env_var")
 
     selected_backend = _as_str(
         os.getenv(backend_env_var) or llm_cfg.get("default_backend"),
@@ -210,24 +210,25 @@ def load_config(cfg_path: str):
     ).lower()
     active_profile = llm_cfg.get("cloud", {}) if selected_backend == "cloud" else llm_cfg.get("local", {})
 
-    model = os.getenv(model_env_var) or active_profile.get("model") or llm_cfg.get("model") or "gpt-4o-mini"
-    base_url = os.getenv(base_url_env_var)
-    if base_url is None:
-        base_url = active_profile.get("base_url")
+    # Resolve env-var names with profile override first, then llm-global names.
+    effective_base_url_env_var = active_profile.get("base_url_env_var") or active_profile.get("base_url_env") or base_url_env_var
+    effective_api_key_env_var = active_profile.get("api_key_env_var") or active_profile.get("api_key_env") or api_key_env_var
+
+    model = (os.getenv(str(model_env_var)) if model_env_var else None) or active_profile.get("model") or llm_cfg.get("model")
+    if model is None:
+        raise ValueError("Missing model configuration: set models.llm.model_env_var or models.llm.<backend>.model in settings.yaml")
+
+    base_url = (os.getenv(str(effective_base_url_env_var)) if effective_base_url_env_var else None) or active_profile.get("base_url")
     if isinstance(base_url, str):
         base_url = base_url.strip() or None
 
-    api_key = os.getenv(api_key_env_var)
-    profile_api_key_env = active_profile.get("api_key_env")
-    if api_key is None and profile_api_key_env:
-        api_key = os.getenv(str(profile_api_key_env))
-    if api_key is None:
-        api_key = active_profile.get("api_key")
+    api_key = (os.getenv(str(effective_api_key_env_var)) if effective_api_key_env_var else None) or active_profile.get("api_key")
 
-    rpm = os.getenv(rpm_env_var)
-    if rpm is None:
-        rpm = active_profile.get("requests_per_minute_default")
-    rpm = _as_int(rpm, 3)
+    rpm_default_from_reasoner = SETTINGS.get("runtime", {}).get("llm_reasoner", {}).get(
+        "requests_per_minute_default_cloud" if selected_backend == "cloud" else "requests_per_minute_default_local"
+    )
+    rpm = (os.getenv(str(rpm_env_var)) if rpm_env_var else None) or active_profile.get("requests_per_minute_default") or rpm_default_from_reasoner
+    rpm = _as_int(rpm, _as_int(rpm_default_from_reasoner, 1))
     return model, rpm, base_url, api_key
 
 
@@ -287,7 +288,7 @@ def init_models(ra_df: pd.DataFrame) -> tuple[EmbeddingModel, RAClassifier, LLMR
 # sym:preflight_llm_affinity
 def preflight_llm_affinity(reasoner: LLMReasoner) -> None:
     """DEPRECATED: retained only for manual diagnostics; not used by the main execution path."""
-    base_url = os.getenv("OPENAI_BASE_URL") or "<openai-cloud>"
+    base_url = reasoner._endpoint_for_logs() if hasattr(reasoner, "_endpoint_for_logs") else "<openai-cloud>"
     try:
         # Reuse the exact affinity path used in the main loop.
         val = reasoner.rate_affinity(

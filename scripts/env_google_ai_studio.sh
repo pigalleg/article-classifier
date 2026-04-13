@@ -6,7 +6,7 @@
 export LLM_BACKEND="cloud"
 
 # Clear any previous local backend override (e.g., Ollama)
-unset OPENAI_BASE_URL
+unset OPENAI_BASE_URL 2>/dev/null || true
 
 # Prefer GOOGLE_API_KEY; fall back to GEMINI_API_KEY if present.
 if [[ -z "${GOOGLE_API_KEY:-}" && -n "${GEMINI_API_KEY:-}" ]]; then
@@ -24,9 +24,10 @@ export OPENAI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
 export OPENAI_API_KEY="$GOOGLE_API_KEY"
 
 # A commonly available Gemini model in AI Studio.
-export OPENAI_MODEL="gemini-2.5-flash"
+export OPENAI_MODEL="gemini-3-flash-preview"
 
-# Conservative default rate limit; tune as needed. Monitor request rates at: https://aistudio.google.com/rate-limit?project=gen-lang-client-0684680159
-export OPENAI_REQUESTS_PER_MINUTE="5"
+# Conservative default rate limit; tune as needed. Monitor request rates at:
+# https://aistudio.google.com/rate-limit\?project\=gen-lang-client-0684680159
+export OPENAI_REQUESTS_PER_MINUTE="500"
 
 echo "Google AI Studio env set: backend=$LLM_BACKEND, base=$OPENAI_BASE_URL, model=$OPENAI_MODEL, rpm=$OPENAI_REQUESTS_PER_MINUTE"

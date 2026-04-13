@@ -78,28 +78,31 @@ class LLMReasoner:
         affinity_defaults, reasoner_defaults, model_defaults = _load_reasoner_settings()
 
         # Resolve endpoint/backend and credentials from settings with env overrides.
-        backend_env_var = _as_str(model_defaults.get("backend_env_var"), "LLM_BACKEND")
-        model_env_var = _as_str(model_defaults.get("model_env_var"), "OPENAI_MODEL")
-        base_url_env_var = _as_str(model_defaults.get("base_url_env_var"), "OPENAI_BASE_URL")
-        api_key_env_var = _as_str(model_defaults.get("api_key_env_var"), "OPENAI_API_KEY")
-        rpm_env_var = _as_str(model_defaults.get("rpm_env_var"), "OPENAI_REQUESTS_PER_MINUTE")
+        backend_env_var = model_defaults.get("backend_env_var")
+        model_env_var = model_defaults.get("model_env_var")
+        base_url_env_var = model_defaults.get("base_url_env_var")
+        api_key_env_var = model_defaults.get("api_key_env_var")
+        rpm_env_var = model_defaults.get("rpm_env_var")
 
         configured_backend = _as_str(model_defaults.get("default_backend"), "local")
-        selected_backend = os.getenv(backend_env_var) or configured_backend
+        selected_backend = (os.getenv(str(backend_env_var)) if backend_env_var else None) or configured_backend
         use_cloud_backend = _is_backend_cloud(selected_backend)
         active_profile = model_defaults.get("cloud", {}) if use_cloud_backend else model_defaults.get("local", {})
 
-        env_base_url = os.getenv(base_url_env_var)
+        # Resolve env-var names with profile override first, then llm-global names.
+        effective_base_url_env_var = active_profile.get("base_url_env_var") or active_profile.get("base_url_env") or base_url_env_var
+        effective_api_key_env_var = active_profile.get("api_key_env_var") or active_profile.get("api_key_env") or api_key_env_var
+
+        env_base_url = os.getenv(str(effective_base_url_env_var)) if effective_base_url_env_var else None
         profile_base_url = active_profile.get("base_url")
         resolved_base_url = base_url if base_url is not None else (env_base_url if env_base_url is not None else profile_base_url)
         if isinstance(resolved_base_url, str):
             resolved_base_url = resolved_base_url.strip() or None
+        self._effective_base_url_env_var = str(effective_base_url_env_var) if effective_base_url_env_var else None
+        self._resolved_base_url = resolved_base_url
 
         profile_api_key = active_profile.get("api_key")
-        profile_api_key_env = active_profile.get("api_key_env")
-        env_api_key = os.getenv(api_key_env_var)
-        if env_api_key is None and profile_api_key_env:
-            env_api_key = os.getenv(str(profile_api_key_env))
+        env_api_key = os.getenv(str(effective_api_key_env_var)) if effective_api_key_env_var else None
         resolved_api_key = api_key if api_key is not None else (env_api_key if env_api_key is not None else profile_api_key)
 
         timeout = _as_int(timeout, _as_int(reasoner_defaults.get("timeout_seconds"), 60))
@@ -109,43 +112,33 @@ class LLMReasoner:
             self.client = OpenAI(base_url=resolved_base_url, api_key=resolved_api_key, timeout=timeout)
         else:
             self.client = OpenAI(api_key=resolved_api_key, timeout=timeout)
-
+        print(f"Using base URL: {resolved_base_url}")
         self.backend = "cloud" if use_cloud_backend else "local"
 
         # Model and runtime params
         profile_model = active_profile.get("model")
+        env_model = os.getenv(str(model_env_var)) if model_env_var else None
         self.model = (
             model
-            or os.getenv(model_env_var)
+            or env_model
             or profile_model
             or model_defaults.get("model")
-            or "gpt-4o-mini"
         )
+        if self.model is None:
+            raise ValueError("Missing model configuration: set models.llm.model_env_var or models.llm.<backend>.model in settings.yaml")
         print(f"Using backend: {self.backend}")
         print(f"Using model: {self.model}")
         self.temperature = _as_float(temperature, _as_float(reasoner_defaults.get("temperature"), 0.3))
         self.max_retries = _as_int(max_retries, _as_int(reasoner_defaults.get("max_retries"), 3))
 
         # Rate limiting (requests per minute)
-        rpm_env = os.getenv(rpm_env_var)
-        rpm_default_cloud = _as_int(reasoner_defaults.get("requests_per_minute_default_cloud"), 3)
-        rpm_default_local = _as_int(reasoner_defaults.get("requests_per_minute_default_local"), 9999)
-        rpm_default_profile = _as_int(
-            active_profile.get("requests_per_minute_default"),
-            rpm_default_cloud if use_cloud_backend else rpm_default_local,
+        rpm_env = os.getenv(str(rpm_env_var)) if rpm_env_var else None
+        rpm_default_reasoner = reasoner_defaults.get(
+            "requests_per_minute_default_cloud" if use_cloud_backend else "requests_per_minute_default_local"
         )
-        try:
-            rpm_val = int(
-                requests_per_minute
-                if requests_per_minute is not None
-                else (
-                    rpm_env
-                    if rpm_env is not None
-                    else rpm_default_profile
-                )
-            )
-        except Exception:
-            rpm_val = rpm_default_profile
+        rpm_default_profile = active_profile.get("requests_per_minute_default") or rpm_default_reasoner
+        rpm_candidate = requests_per_minute if requests_per_minute is not None else (rpm_env if rpm_env is not None else rpm_default_profile)
+        rpm_val = _as_int(rpm_candidate, _as_int(rpm_default_reasoner, 1))
         # print(f"Requests per minute: {rpm_val}")
         self.requests_per_minute = max(0, rpm_val)
         self._min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute > 0 else 0.0
@@ -168,6 +161,15 @@ class LLMReasoner:
         except Exception:
             mbs_val = mbs_default
         self.micro_batch_size = max(1, mbs_val)
+
+    def _endpoint_for_logs(self) -> str:
+        if self._resolved_base_url:
+            return str(self._resolved_base_url)
+        if self._effective_base_url_env_var:
+            env_val = os.getenv(self._effective_base_url_env_var)
+            if env_val:
+                return str(env_val)
+        return "<openai-cloud>"
 
     @staticmethod
     def _is_model_unavailable_error(err: Exception) -> bool:
@@ -562,7 +564,7 @@ Return your answer in strict JSON format:
 
             except Exception as e:
                 if self._is_model_unavailable_error(e):
-                    base_url = os.getenv("OPENAI_BASE_URL") or "<openai-cloud>"
+                    base_url = self._endpoint_for_logs()
                     raise RuntimeError(
                         f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
                         f"Original error: {e}"
@@ -764,7 +766,7 @@ Return your answer in strict JSON format:
 
             except Exception as e:
                 if self._is_model_unavailable_error(e):
-                    base_url = os.getenv("OPENAI_BASE_URL") or "<openai-cloud>"
+                    base_url = self._endpoint_for_logs()
                     raise RuntimeError(
                         f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
                         f"Original error: {e}"

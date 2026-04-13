@@ -100,20 +100,20 @@ Switch between cloud and local by sourcing the cloud/local env scripts.
 
 **Linux / macOS:**
 ```bash
-source scripts/env_cloud.sh
+source scripts/env_openAI.sh
 # or
 source scripts/env_local_ollama.sh
 ```
 
 **Windows:**
 ```cmd
-scripts\env_cloud.bat
+scripts\env_openAI.bat
 <!-- or -->
 scripts\env_local_ollama.bat
 ```
 
 Notes:
-- `scripts/env_cloud.*` sets `LLM_BACKEND=cloud`.
+- `scripts/env_openAI.*` sets `LLM_BACKEND=cloud`.
 - `scripts/env_local_ollama.*` sets `LLM_BACKEND=local` and clears runtime overrides so local profile defaults in settings are used.
 - You can still override model/base URL/rate limit through env vars (`OPENAI_MODEL`, `OPENAI_BASE_URL`, `OPENAI_REQUESTS_PER_MINUTE`, `OPENAI_API_KEY`).
 

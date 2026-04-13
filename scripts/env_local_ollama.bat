@@ -1,9 +1,9 @@
 @echo off
-REM Usage: env_local_ollama.bat
-REM Force local backend
+REM Usage: scripts\env_local_ollama.bat
+REM Force local backend.
 set LLM_BACKEND=local
 
-REM Clear cloud-only overrides so settings.yaml local defaults are used
+REM Clear cloud-only overrides so settings.yaml local defaults are used.
 set OPENAI_BASE_URL=
 set OPENAI_API_KEY=
 set OPENAI_MODEL=
