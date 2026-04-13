@@ -183,6 +183,7 @@ You can inject few-shot examples into RA/PRP affinity prompts to reduce model va
 
 Configuration is under `runtime.llm_reasoner` in `src/config/settings.yaml`:
 - `enable_few_shot`: enable/disable few-shot prompting (default: `false`)
+- `enable_affinity_reasons`: request a reason per target ID in the affinity JSON response (default: `false`)
 - `few_shot_ra_file`: YAML file for RA examples
 - `few_shot_prp_file`: YAML file for PRP examples
 - `few_shot_max_examples_per_prompt`: max examples injected per prompt
@@ -213,8 +214,10 @@ Notes:
 - Multiple labels per abstract are supported through `targets`.
 - Backward compatibility is kept for legacy single-label fields (`target_id`, `score`, `rationale`).
 - Scores are clamped to `[0, 100]`.
+- When `enable_affinity_reasons` is on, the model returns one short reason per ID and the output CSV includes `LLM_Affinity_Reason`.
 - You can override settings with env vars:
   - `AFFINITY_ENABLE_FEW_SHOT`
+  - `AFFINITY_ENABLE_AFFINITY_REASONS`
   - `AFFINITY_FEW_SHOT_RA_FILE`
   - `AFFINITY_FEW_SHOT_PRP_FILE`
   - `AFFINITY_FEW_SHOT_MAX_EXAMPLES`

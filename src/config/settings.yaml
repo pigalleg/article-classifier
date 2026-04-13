@@ -16,7 +16,7 @@ runtime:
     prp_min_affinity:
     prp_membership_confidence_min: 10
     prp_scope_fallback_mode: legacy_scores # The abstract is scored against all PRPs (including General), and no out-of-scope zeroing rule is applied for that abstract.
-    affinity_debug: true
+    affinity_debug: false
   llm_reasoner:
     temperature: 0
     max_retries: 3
@@ -25,6 +25,7 @@ runtime:
     requests_per_minute_default_local: 9999
     micro_batch_size: 48 # Set it to >1 to enable multiple RA questions per prompt, which can improve throughput but may increase latency and memory usage.
     enable_few_shot: false
+    enable_affinity_reasons: false
     few_shot_ra_file: data/prompts/few_shot_ra.yaml
     few_shot_prp_file: data/prompts/few_shot_prp.yaml
     few_shot_max_examples_per_prompt: 3
@@ -47,7 +48,7 @@ models:
     local:
       base_url: http://localhost:11434/v1
       api_key: ollama
-      model: llama3.1:latest
+      model: gemma4:31b-cloud
       requests_per_minute_default: 9999
 
     # Cloud backend defaults.
@@ -69,27 +70,61 @@ models:
         - name: gemma4:31b-cloud
           backend: local
           model: gemma4:31b-cloud
-          enabled: true
+          enabled: false
+        - name: ministral-3:14b-cloud # fast
+          backend: local
+          model: ministral-3:14b-cloud
+          enabled: false
         - name: "gpt-5.4-nano"
           backend: cloud
           model: "gpt-5.4-nano"
           base_url:
           api_key_env: OPENAI_CLOUD_API_KEY
-          enabled: true
+          enabled: false
+        - name: "gpt-5.4-mini"
+          backend: cloud
+          model: "gpt-5.4-mini"
+          base_url:
+          api_key_env: OPENAI_CLOUD_API_KEY
+          enabled: false
         - name: "gemini-3-flash-preview"
           backend: cloud
           model: "gemini-3-flash-preview"
           base_url: https://generativelanguage.googleapis.com/v1beta/openai
           api_key_env: GOOGLE_API_KEY
-          enabled: true
-        - name: phi3:mini
-          backend: local
-          model: phi3:mini
           enabled: false
-        - name: ministral-3:latest
+        - name: mixtral:8x7b # fast
           backend: local
-          model: ministral-3:latest
-          enabled: False
+          model: mixtral:8x7b
+          enabled: false
+        - name: llama4:16x17b # fast
+          backend: local
+          model: llama4:16x17b
+          enabled: false
+        - name: qwen2.5:7b # fast
+          backend: local
+          model: qwen2.5:7b
+          enabled: false
+        # - name: llama3.1:8b # fast
+        #   backend: local
+        #   model: llama3.1:8b
+        #   enabled: false
+        # - name: gemma3:4b # fast
+        #   backend: local
+        #   model: gemma3:4b
+        #   enabled: false
+        # - name: mistral:7b # fast
+        #   backend: local
+        #   model: mistral:7b
+        #   enabled: false
+        # - name: phi3:3.8b # fast
+        #   backend: local
+        #   model: phi3:3.8b
+        #   enabled: false
+        # - name: smollm2:1.7b # fast
+        #   backend: local
+        #   model: smollm2:1.7b
+        #   enabled: false
 
 thresholds:
   match_score: 0.5

@@ -21,6 +21,44 @@ class DummyOpenAI:
     def __init__(self, base_url=None, api_key=None, timeout=None):
         self.chat = type("c", (), {"completions": DummyCompletions()})()
 
+
+class BatchReasonMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class BatchReasonChoice:
+    def __init__(self, content):
+        self.message = BatchReasonMessage(content)
+
+
+class BatchReasonResponse:
+    def __init__(self, content):
+        self.choices = [BatchReasonChoice(content)]
+
+
+class BatchReasonCompletions:
+    def __init__(self):
+        self.prompts = []
+
+    def create(self, model, messages, temperature):
+        prompt = messages[0]["content"]
+        self.prompts.append(prompt)
+        if "affinity_scores" in prompt:
+            content = (
+                '{"belongs_any_prp": true, "membership_confidence": 91, '
+                '"affinity_scores": {"Planning": {"score": 84, "reason": "Planning reason"}}}'
+            )
+        else:
+            content = '{"Planning": {"score": 84, "reason": "Planning reason"}}'
+
+        return BatchReasonResponse(content)
+
+
+class BatchReasonOpenAI:
+    def __init__(self, base_url=None, api_key=None, timeout=None):
+        self.chat = type("c", (), {"completions": BatchReasonCompletions()})()
+
 def test_llm_reasoner_rate_limit(monkeypatch):
     """Validate that LLMReasoner enforces client-side sleeping when requests are too frequent.
 
@@ -200,3 +238,53 @@ examples:
     assert "Label 1 Score: 88.0" in prompt
     assert "Label 2 Target ID: 43" in prompt
     assert "Label 2 Score: 61.0" in prompt
+
+
+def test_affinity_reasons_enabled_for_ra_and_prp(monkeypatch):
+    import importlib
+
+    mod = importlib.import_module("src.models.llm_reasoner")
+    monkeypatch.setattr(mod, "OpenAI", BatchReasonOpenAI)
+    monkeypatch.setenv("AFFINITY_ENABLE_AFFINITY_REASONS", "1")
+
+    from src.models.llm_reasoner import LLMReasoner
+
+    reasoner = LLMReasoner(requests_per_minute=0)
+
+    ra_scores = reasoner.rate_affinity_batch(
+        "Abstract text",
+        [{"id": "Planning", "text": "Planning question"}],
+        target_type="RA",
+    )
+    assert ra_scores["Planning"]["score"] == 84.0
+    assert ra_scores["Planning"]["reason"] == "Planning reason"
+    assert "'score' and 'reason'" in reasoner.client.chat.completions.prompts[0]
+
+    prp_result = reasoner.rate_prp_affinity_with_scope(
+        "Abstract text",
+        [{"id": "Planning", "text": "Planning programme"}],
+        "General scope anchor",
+    )
+    assert prp_result["belongs_any_prp"] is True
+    assert prp_result["membership_confidence"] == 91.0
+    assert prp_result["scores"]["Planning"]["score"] == 84.0
+    assert prp_result["scores"]["Planning"]["reason"] == "Planning reason"
+    assert "'score' and 'reason'" in reasoner.client.chat.completions.prompts[1]
+
+
+def test_affinity_reasons_disabled_keeps_score_only(monkeypatch):
+    import importlib
+
+    mod = importlib.import_module("src.models.llm_reasoner")
+    monkeypatch.setattr(mod, "OpenAI", BatchReasonOpenAI)
+    monkeypatch.setenv("AFFINITY_ENABLE_AFFINITY_REASONS", "0")
+
+    from src.models.llm_reasoner import LLMReasoner
+
+    reasoner = LLMReasoner(requests_per_minute=0)
+    scores = reasoner.rate_affinity_batch(
+        "Abstract text",
+        [{"id": "Planning", "text": "Planning question"}],
+        target_type="RA",
+    )
+    assert scores["Planning"] == 84.0

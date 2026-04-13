@@ -70,7 +70,8 @@ class LLMReasoner:
 
     def __init__(self, model=None, temperature=None, max_retries=None, timeout=None,
                  requests_per_minute=None, base_url=None, api_key=None,
-                 micro_batch_size=None, enable_few_shot=None):
+                 micro_batch_size=None, enable_few_shot=None,
+                 enable_affinity_reasons=None):
         """
         If OPENAI_BASE_URL is set, connect to a local/OpenAI-compatible server (e.g., Ollama).
         Otherwise, use OpenAI cloud. API key is read from env if not provided.
@@ -119,14 +120,15 @@ class LLMReasoner:
         # Model and runtime params
         profile_model = active_profile.get("model")
         env_model = os.getenv(str(model_env_var)) if model_env_var else None
-        self.model = (
+        selected_model = (
             model
             or env_model
             or profile_model
             or model_defaults.get("model")
         )
-        if self.model is None:
+        if selected_model is None:
             raise ValueError("Missing model configuration: set models.llm.model_env_var or models.llm.<backend>.model in settings.yaml")
+        self.model: str = str(selected_model)
         print(f"Using backend: {self.backend}")
         print(f"Using model: {self.model}")
         self.temperature = _as_float(temperature, _as_float(reasoner_defaults.get("temperature"), 0.3))
@@ -168,6 +170,11 @@ class LLMReasoner:
         self.enable_few_shot = _as_bool(
             enable_few_shot if enable_few_shot is not None else enable_few_shot_env,
             _as_bool(reasoner_defaults.get("enable_few_shot"), False),
+        )
+        enable_affinity_reasons_env = os.getenv("AFFINITY_ENABLE_AFFINITY_REASONS")
+        self.enable_affinity_reasons = _as_bool(
+            enable_affinity_reasons if enable_affinity_reasons is not None else enable_affinity_reasons_env,
+            _as_bool(reasoner_defaults.get("enable_affinity_reasons"), False),
         )
         few_shot_max_env = os.getenv("AFFINITY_FEW_SHOT_MAX_EXAMPLES")
         few_shot_max_default = _as_int(reasoner_defaults.get("few_shot_max_examples_per_prompt"), 2)
@@ -270,11 +277,8 @@ Return your answer in strict JSON format:
                 self._last_request_time = time.time()
 
                 # Extract reply text depending on SDK shape
-                try:
-                    reply = response.choices[0].message.content.strip()
-                except Exception:
-                    # fallback for other response shapes
-                    reply = str(response)
+                message_content = getattr(response.choices[0].message, "content", None) if getattr(response, "choices", None) else None
+                reply = str(message_content).strip() if message_content is not None else str(response)
 
                 # Try to extract the JSON object from the reply. Many LLMs
                 # wrap JSON in markdown fences or add commentary, so we
@@ -614,13 +618,60 @@ Return your answer in strict JSON format:
                 continue
 
             try:
-                val = float(raw_score)
-                val = max(0.0, min(100.0, val))
-                out[mapped_key] = val
+                if isinstance(raw_score, dict):
+                    score_raw = raw_score.get("score", raw_score.get("affinity", raw_score.get("value")))
+                    reason_raw = raw_score.get("reason", raw_score.get("rationale", raw_score.get("explanation")))
+                    if score_raw is None:
+                        raise TypeError("Missing score")
+                    score = float(score_raw)
+                    score = max(0.0, min(100.0, score))
+                    if self.enable_affinity_reasons:
+                        out[mapped_key] = {
+                            "score": score,
+                            "reason": self._compact_text(reason_raw, max_len=350) if reason_raw is not None else None,
+                        }
+                    else:
+                        out[mapped_key] = score
+                else:
+                    val = float(raw_score)
+                    val = max(0.0, min(100.0, val))
+                    out[mapped_key] = val
             except (ValueError, TypeError):
-                out[mapped_key] = None
+                if isinstance(raw_score, dict):
+                    reason_raw = raw_score.get("reason", raw_score.get("rationale", raw_score.get("explanation")))
+                    if self.enable_affinity_reasons:
+                        out[mapped_key] = {
+                            "score": None,
+                            "reason": self._compact_text(reason_raw, max_len=350) if reason_raw is not None else None,
+                        }
+                    else:
+                        out[mapped_key] = None
+                else:
+                    out[mapped_key] = None
 
         return out
+
+    @staticmethod
+    def _compact_reason(value: Any, max_len: int = 350) -> str | None:
+        txt = re.sub(r"\s+", " ", str(value or "")).strip()
+        return txt[:max_len] if txt else None
+
+    def _extract_affinity_value(self, value: Any) -> tuple[float | None, str | None]:
+        if isinstance(value, dict):
+            score_raw = value.get("score", value.get("affinity", value.get("value")))
+            reason = self._compact_reason(value.get("reason", value.get("rationale", value.get("explanation"))))
+        else:
+            score_raw = value
+            reason = None
+
+        try:
+            if score_raw is None:
+                raise TypeError("Missing score")
+            score = float(score_raw)
+            score = max(0.0, min(100.0, score))
+        except Exception:
+            score = None
+        return score, reason
 
     def _build_affinity_prompt(
         self,
@@ -633,35 +684,57 @@ Return your answer in strict JSON format:
         required_ids_text = ", ".join(required_ids)
         if target_type == "PRP":
             few_shot_block = self._format_few_shot_block("PRP")
+            if self.enable_affinity_reasons:
+                rules_block = (
+                    "- For each required ID, return an object with keys 'score' and 'reason'.\n"
+                    "- The reason must be short and specific to that ID.\n"
+                )
+                example_block = (
+                    '{"<ID_FROM_INPUT_1>": {"score": 85, "reason": "brief reason"}, "<ID_FROM_INPUT_2>": {"score": 42, "reason": "brief reason"}}\n\n'
+                )
+            else:
+                rules_block = "- Values must be numbers in [0,100].\n"
+                example_block = '{"<ID_FROM_INPUT_1>": 85, "<ID_FROM_INPUT_2>": 42}\n\n'
             return (
                 "Evaluate PRP affinities for the abstract. "
                 "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
                 "Return ONLY one JSON object (no extra text).\n"
                 "Rules:\n"
                 "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
-                "- Values must be numbers in [0,100].\n"
+                f"{rules_block}"
                 f"Required IDs: {required_ids_text}\n"
                 f"{few_shot_block}"
                 f"Abstract:\n{abstract}\n\n"
                 f"Primary Research Programmes:\n{targets_text}\n\n"
                 "Output JSON example:\n"
-                "{\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}\n\n"
+                f"{example_block}"
             )
         else:  # RA type
             few_shot_block = self._format_few_shot_block("RA")
+            if self.enable_affinity_reasons:
+                rules_block = (
+                    "- For each required ID, return an object with keys 'score' and 'reason'.\n"
+                    "- The reason must be short and specific to that ID.\n"
+                )
+                example_block = (
+                    '{"<ID_FROM_INPUT_1>": {"score": 85, "reason": "brief reason"}, "<ID_FROM_INPUT_2>": {"score": 42, "reason": "brief reason"}}\n\n'
+                )
+            else:
+                rules_block = "- Values must be numbers in [0,100].\n"
+                example_block = '{"<ID_FROM_INPUT_1>": 85, "<ID_FROM_INPUT_2>": 42}\n\n'
             return (
                 "Evaluate RA question affinities for the abstract. "
                 "Score the abstract’s relevance to the research question from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the questions’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the questions’s core problem); 71–100 = High relevance (directly and substantially addresses the questions’s main objectives).\n"
                 "Return ONLY one JSON object (no extra text).\n"
                 "Rules:\n"
                 "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
-                "- Values must be numbers in [0,100].\n"
+                f"{rules_block}"
                 f"Required IDs: {required_ids_text}\n"
                 f"{few_shot_block}"
                 f"Abstract:\n{abstract}\n\n"
                 f"Research questions:\n{targets_text}\n\n"
                 "Output JSON example:\n"
-                "{\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}\n\n"
+                f"{example_block}"
             )
 
     def _build_prp_scope_prompt(
@@ -674,6 +747,18 @@ Return your answer in strict JSON format:
         """Build a PRP prompt that includes explicit in-scope/out-of-scope metadata."""
         required_ids_text = ", ".join(required_ids)
         few_shot_block = self._format_few_shot_block("PRP")
+        if self.enable_affinity_reasons:
+            affinity_scores_example = (
+                '    "<ID_FROM_INPUT_1>": {"score": 0, "reason": "brief reason"},\n'
+                '    "<ID_FROM_INPUT_2>": {"score": 0, "reason": "brief reason"}\n'
+            )
+            affinity_scores_rule = "- affinity_scores values must be objects with keys 'score' and 'reason'.\n"
+        else:
+            affinity_scores_example = (
+                '    "<ID_FROM_INPUT_1>": 0,\n'
+                '    "<ID_FROM_INPUT_2>": 0\n'
+            )
+            affinity_scores_rule = "- affinity_scores values must be numbers in [0,100].\n"
         return (
             "Evaluate PRP scope and PRP affinities for the abstract. "
             "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
@@ -683,15 +768,14 @@ Return your answer in strict JSON format:
             "  \"belongs_any_prp\": true,\n"
             "  \"membership_confidence\": 0,\n"
             "  \"affinity_scores\": {\n"
-            "    \"<ID_FROM_INPUT_1>\": 0,\n"
-            "    \"<ID_FROM_INPUT_2>\": 0\n"
+            f"{affinity_scores_example}"
             "  }\n"
             "}\n\n"
             "Rules:\n"
             "- belongs_any_prp: boolean.\n"
             "- membership_confidence: number in [0,100], and >0 if belongs_any_prp=true.\n"
             "- affinity_scores: include ALL required IDs exactly once; do not add or rename keys.\n"
-            "- affinity_scores values: numbers in [0,100].\n"
+            f"{affinity_scores_rule}"
             f"Required IDs: {required_ids_text}\n\n"
             f"{few_shot_block}"
             f"Abstract:\n{abstract}\n\n"
@@ -738,10 +822,8 @@ Return your answer in strict JSON format:
                 )
                 self._last_request_time = time.time()
 
-                try:
-                    reply = resp.choices[0].message.content.strip()
-                except Exception:
-                    reply = str(resp)
+                message_content = getattr(resp.choices[0].message, "content", None) if getattr(resp, "choices", None) else None
+                reply = str(message_content).strip() if message_content is not None else str(resp)
 
                 if self.affinity_debug:
                     print(f"[rate_affinity_batch] raw reply: {reply}")
@@ -847,7 +929,11 @@ Return your answer in strict JSON format:
             missing_questions = [{"id": tid, "text": id_to_text.get(tid, "")} for tid in missing_ids]
             raise ValueError(f"Missing affinity scores for targets: {missing_questions}")
 
-        invalid_ids = [tid for tid, val in scores.items() if val is None]
+        invalid_ids = [
+            tid
+            for tid, val in scores.items()
+            if val is None or (isinstance(val, dict) and val.get("score") is None)
+        ]
         if invalid_ids:
             invalid_questions = [{"id": tid, "text": id_to_text.get(tid, "")} for tid in invalid_ids]
             raise ValueError(f"Invalid affinity values for targets: {invalid_questions}")
@@ -936,10 +1022,8 @@ Return your answer in strict JSON format:
                 )
                 self._last_request_time = time.time()
 
-                try:
-                    reply = resp.choices[0].message.content.strip()
-                except Exception:
-                    reply = str(resp)
+                message_content = getattr(resp.choices[0].message, "content", None) if getattr(resp, "choices", None) else None
+                reply = str(message_content).strip() if message_content is not None else str(resp)
 
                 if self.affinity_debug:
                     print(f"[rate_prp_affinity_with_scope] raw reply: {reply}")

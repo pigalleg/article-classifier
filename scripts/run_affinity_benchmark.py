@@ -248,6 +248,26 @@ def parse_args(settings: dict[str, Any]) -> argparse.Namespace:
         default=str(affinity_cfg.get("prp_scope_fallback_mode", "legacy_scores")),
     )
     parser.add_argument(
+        "--enable-affinity-reasons",
+        dest="enable_affinity_reasons",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Override whether affinity prompts must return a reason per target ID for all stage calls. "
+            "Use --enable-affinity-reasons or --no-enable-affinity-reasons."
+        ),
+    )
+    parser.add_argument(
+        "--enable-few-shot",
+        dest="enable_few_shot",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Override few-shot prompting for all stage calls. "
+            "Use --enable-few-shot or --no-enable-few-shot."
+        ),
+    )
+    parser.add_argument(
         "--output-root",
         default=str(bench_cfg.get("output_root", "data/results/affinity_benchmark")),
         help="Root directory for benchmark outputs",
@@ -265,6 +285,17 @@ def parse_args(settings: dict[str, Any]) -> argparse.Namespace:
 
 def _run_stage(cmd: list[str], env: dict[str, str]) -> None:
     subprocess.run(cmd, cwd=str(REPO_ROOT), env=env, check=True)
+
+
+def _append_reasoner_overrides(cmd: list[str], args: argparse.Namespace) -> None:
+    if args.enable_few_shot is not None:
+        cmd.append("--enable-few-shot" if args.enable_few_shot else "--no-enable-few-shot")
+    if args.enable_affinity_reasons is not None:
+        cmd.append(
+            "--enable-affinity-reasons"
+            if args.enable_affinity_reasons
+            else "--no-enable-affinity-reasons"
+        )
 
 
 def _build_env(profile: ModelProfile, model_output_dir: Path) -> dict[str, str]:
@@ -354,6 +385,7 @@ def main() -> None:
                     "--prp-scope-fallback-mode",
                     args.prp_scope_fallback_mode,
                 ]
+                _append_reasoner_overrides(cmd, args)
                 _run_stage(cmd, env)
 
             if args.mode in {"ra", "both"}:
@@ -377,6 +409,7 @@ def main() -> None:
                 ]
                 if args.prp_min_affinity is not None:
                     cmd.extend(["--prp-min-affinity", str(args.prp_min_affinity)])
+                _append_reasoner_overrides(cmd, args)
 
                 _run_stage(cmd, env)
 

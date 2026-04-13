@@ -8,9 +8,9 @@ examples:
       - target_id: IBR
         score: 95
         rationale: Direct focus on grid-forming (GFM) control of MMC-HVDC systems, including advanced control design and energy management for converter-based systems-core IBR topic.
-      - target_id: System Services
-        score: 55
-        rationale: Frequency support provision is relevant to services, though secondary to converter control.
+      # - target_id: System Services
+      #   score: 55
+      #   rationale: Frequency support provision is relevant to services, though secondary to converter control.
 
   - id: id_25_mid
     target_type: PRP

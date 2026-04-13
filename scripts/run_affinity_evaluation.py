@@ -169,6 +169,16 @@ def parse_args() -> argparse.Namespace:
         help="Fallback mode when PRP scope JSON is invalid (strict=fail, legacy_scores=use legacy PRP scoring)",
     )
     parser.add_argument(
+        "--enable-affinity-reasons",
+        dest="enable_affinity_reasons",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Override whether affinity prompts must return a reason per target ID. "
+            "Use --enable-affinity-reasons or --no-enable-affinity-reasons."
+        ),
+    )
+    parser.add_argument(
         "--enable-few-shot",
         dest="enable_few_shot",
         action=argparse.BooleanOptionalAction,
@@ -282,7 +292,11 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Option
     return abstracts, ra, prp, prp_name_col, prp_desc_col
 
 
-def init_models(ra_df: pd.DataFrame, enable_few_shot: Optional[bool] = None) -> tuple[EmbeddingModel, RAClassifier, LLMReasoner]:
+def init_models(
+    ra_df: pd.DataFrame,
+    enable_few_shot: Optional[bool] = None,
+    enable_affinity_reasons: Optional[bool] = None,
+) -> tuple[EmbeddingModel, RAClassifier, LLMReasoner]:
     embedder = EmbeddingModel(model_name=EMBED_MODEL)
     classifier = RAClassifier(embedder, ra_df, text_column="Question_Cleaned")
     llm_model, rpm, base_url, api_key = load_config(CFG_PATH)
@@ -293,8 +307,30 @@ def init_models(ra_df: pd.DataFrame, enable_few_shot: Optional[bool] = None) -> 
         base_url=base_url,
         api_key=api_key,
         enable_few_shot=enable_few_shot,
+        enable_affinity_reasons=enable_affinity_reasons,
     )
     return embedder, classifier, reasoner
+
+
+def _extract_affinity_score_and_reason(value: Any) -> tuple[Optional[float], Optional[str]]:
+    if isinstance(value, dict):
+        score_raw = value.get("score", value.get("affinity", value.get("value")))
+        reason = value.get("reason", value.get("rationale", value.get("explanation")))
+    else:
+        score_raw = value
+        reason = None
+
+    if score_raw is None:
+        return None, None
+
+    try:
+        score = float(score_raw)
+        score = float(np.round(max(0.0, min(100.0, score)), 4))
+    except Exception:
+        return None, None
+
+    reason_text = None if reason is None else str(reason).strip()
+    return score, reason_text or None
 
 
 # sym:preflight_llm_affinity
@@ -403,7 +439,8 @@ def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_id
         cos100 = float(np.round(cos * 100.0, 4)) if not np.isnan(cos) else np.nan
         
         # Get LLM affinity from batch results
-        llm_aff = affinity_scores.get(_normalize_id(ra_id))
+        llm_aff_raw = affinity_scores.get(_normalize_id(ra_id))
+        llm_aff, llm_reason = _extract_affinity_score_and_reason(llm_aff_raw)
         
         records.append({
             "Abstract_Index": src_idx,
@@ -411,7 +448,8 @@ def evaluate_ra_affinity_for_abstract(abstract_text: str, doc_title: str, src_id
             "RA2025_ID": ra_id,
             "RA_Question": question,
             "Cosine_x100": cos100,
-            "LLM_Affinity": None if llm_aff is None else float(np.round(float(llm_aff), 4)),
+            "LLM_Affinity": llm_aff,
+            "LLM_Affinity_Reason": llm_reason,
         })
     return records
 
@@ -484,14 +522,16 @@ def evaluate_prp_affinity_for_abstract(abstract_text: str, doc_title: str, src_i
         desc = prp_info["desc"]
         target_id = _normalize_id(target_dict["id"])
         
-        llm_aff = 0.0 if out_of_scope else affinity_scores.get(target_id)
+        llm_aff_raw = 0.0 if out_of_scope else affinity_scores.get(target_id)
+        llm_aff, llm_reason = _extract_affinity_score_and_reason(llm_aff_raw)
         
         records.append({
             "Abstract_Index": src_idx,
             "Document Title": doc_title,
             "PRP_Name": name,
             "PRP_Description": desc,
-            "LLM_Affinity": None if llm_aff is None else float(np.round(float(llm_aff), 4)),
+            "LLM_Affinity": llm_aff,
+            "LLM_Affinity_Reason": None if out_of_scope else llm_reason,
         })
     
     return records
@@ -503,7 +543,11 @@ def main():
     timing_logger = AffinityTimingLogger.from_results_dir(RESULTS_DIR)
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
-    _, classifier, reasoner = init_models(ra, enable_few_shot=args.enable_few_shot)
+    _, classifier, reasoner = init_models(
+        ra,
+        enable_few_shot=args.enable_few_shot,
+        enable_affinity_reasons=args.enable_affinity_reasons,
+    )
     general_prp_description = ""
     if args.mode in {"prp", "both"}:
         general_prp_description = _get_general_prp_description(prp, prp_name_col, prp_desc_col)
