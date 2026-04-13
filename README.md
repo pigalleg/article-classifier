@@ -166,12 +166,58 @@ python scripts/run_affinity_evaluation.py --mode ra --ra-retrieval-mode prp_only
   - `cosine`: pure embedding/cosine top-k retrieval.
   - `prp_filter`: cosine retrieval constrained by PRPs from `--prp-input`.
   - `prp_only`: strict PRP-routed retrieval from `--prp-input` (default behavior).
+- `--enable-few-shot` / `--no-enable-few-shot`: override few-shot prompting for the current run only.
 
 Example:
 
 ```bash
 python scripts/run_affinity_evaluation.py --mode ra --ra-retrieval-mode prp_only --prp-input data/results/prp_affinities.csv
+
+# force few-shot on for this run
+python scripts/run_affinity_evaluation.py --mode ra --enable-few-shot
 ```
+
+### Optional: Few-shot Affinity Calibration
+
+You can inject few-shot examples into RA/PRP affinity prompts to reduce model variance.
+
+Configuration is under `runtime.llm_reasoner` in `src/config/settings.yaml`:
+- `enable_few_shot`: enable/disable few-shot prompting (default: `false`)
+- `few_shot_ra_file`: YAML file for RA examples
+- `few_shot_prp_file`: YAML file for PRP examples
+- `few_shot_max_examples_per_prompt`: max examples injected per prompt
+
+Default example files:
+- `data/prompts/few_shot_ra.yaml`
+- `data/prompts/few_shot_prp.yaml`
+
+YAML format:
+
+```yaml
+version: 1
+examples:
+  - id: ra_high_1
+    target_type: RA
+    abstract: "..."
+    targets:
+      - target_id: "42"
+        score: 88
+        rationale: "optional short explanation"
+      - target_id: "43"
+        score: 61
+        rationale: "optional short explanation"
+```
+
+Notes:
+- Use `target_type: RA` in the RA file and `target_type: PRP` in the PRP file.
+- Multiple labels per abstract are supported through `targets`.
+- Backward compatibility is kept for legacy single-label fields (`target_id`, `score`, `rationale`).
+- Scores are clamped to `[0, 100]`.
+- You can override settings with env vars:
+  - `AFFINITY_ENABLE_FEW_SHOT`
+  - `AFFINITY_FEW_SHOT_RA_FILE`
+  - `AFFINITY_FEW_SHOT_PRP_FILE`
+  - `AFFINITY_FEW_SHOT_MAX_EXAMPLES`
 
 ## Script Outputs
 

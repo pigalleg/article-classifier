@@ -1,0 +1,31 @@
+version: 1
+examples:
+  - id: id_20_high
+    target_type: PRP
+    abstract: >-
+      To integrate weak onshore grids, some grid forming (GFM) control schemes taking advantage of DC voltage synchronization have been proposed for modular multilevel converter-based high-voltage direct current (MMC-HVDC) systems. In these control schemes, the sub-module (SM) capacitor energy is only used for grid synchronization. Since the SM capacitor is an energy storage device, it has the potential to actively regulate the stored energy. To fully exploit the energy management capability of MMC, a dual grid forming control scheme with energy regulation capability is presented in this paper. The proposed control scheme enables grid forming for both onshore and offshore MMC stations. Meanwhile, the capacitor energy of MMCs can be flexibly regulated to provide frequency support for the onshore grid. To verify the effectiveness of the proposed control scheme, case studies are first carried out in a point-to-point offshore wind farms (OWFs) integrated HVDC system. In addition, the frequency support performance is evaluated in a 3-area 4-machine grid integrated with two OWFs-HVDC systems. Finally, a single-terminal three-phase MMC prototype is developed to test the voltage decoupling and energy management capabilities of the proposed control strategy.
+    targets:
+      - target_id: IBR
+        score: 95
+        rationale: Direct focus on grid-forming (GFM) control of MMC-HVDC systems, including advanced control design and energy management for converter-based systems-core IBR topic.
+      - target_id: System Services
+        score: 55
+        rationale: Frequency support provision is relevant to services, though secondary to converter control.
+
+  - id: id_25_mid
+    target_type: PRP
+    abstract: >-
+      This paper introduces a new fault location method for hybrid ac/dc complex transmission grids containing distributed energy resources (ders) and modular multilevel converter-high voltage direct current (hvdc) lines. digital fault recorders (dfr) in the dc grid cannot observe faults occurring in the ac network and vice-versa. the proposed algorithm accurately locates faults irrespective of their location using a subset of dfrs selected by a k-means clustering method. the algorithm is tested using an ac/dc complex transmission network formed by merging the modified ieee 39 bus transmission system and the cigre b4 dc grid test systems under several fault conditions using emtp-rv and matlab as simulation tools.
+    targets:
+      - target_id: DER
+        score: 30
+        rationale: Includes DERs in system modeling, but they are not the central focus (no orchestration or aggregation aspects).
+
+  - id: id_34_low
+    target_type: PRP
+    abstract: >-
+      The uncertainty of electricity prices poses a challenge to all market participants as their decisions highly depend on the accuracy of price forecasts. prediction intervals become an efficient method to quantify the uncertainties that reside in electricity price forecasts. in this paper, we propose a probabilistic electricity price forecast with optimal prediction interval method that considers both reliability and sharpness requirements. taking reliability and sharpness into account, we ensure the prediction interval has a narrow width without sacrificing reliability. in the proposed method, the quantile regression is utilized to estimate the upper and lower bounds of the prediction intervals to avoid electricity price distribution assumption. in addition, the extreme learning machine (elm) method is embedded in the forecast method to capture the nonlinear relationship within price data, and its tuning parameters are optimized using the augmented lagrangian relaxation method in this paper. the effectiveness of the proposed probabilistic forecast method is demonstrated using data from various electricity markets.
+    targets:
+      - target_id: System Services
+        score: 25
+        rationale: Electricity price forecasting is related to markets but does not address technical ancillary services or their provision.

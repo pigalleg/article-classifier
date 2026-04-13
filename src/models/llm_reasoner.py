@@ -11,6 +11,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import difflib
+from typing import Any
 
 import yaml
 
@@ -69,7 +70,7 @@ class LLMReasoner:
 
     def __init__(self, model=None, temperature=None, max_retries=None, timeout=None,
                  requests_per_minute=None, base_url=None, api_key=None,
-                 micro_batch_size=None):
+                 micro_batch_size=None, enable_few_shot=None):
         """
         If OPENAI_BASE_URL is set, connect to a local/OpenAI-compatible server (e.g., Ollama).
         Otherwise, use OpenAI cloud. API key is read from env if not provided.
@@ -161,6 +162,30 @@ class LLMReasoner:
         except Exception:
             mbs_val = mbs_default
         self.micro_batch_size = max(1, mbs_val)
+
+        # Optional few-shot examples for affinity scoring calibration.
+        enable_few_shot_env = os.getenv("AFFINITY_ENABLE_FEW_SHOT")
+        self.enable_few_shot = _as_bool(
+            enable_few_shot if enable_few_shot is not None else enable_few_shot_env,
+            _as_bool(reasoner_defaults.get("enable_few_shot"), False),
+        )
+        few_shot_max_env = os.getenv("AFFINITY_FEW_SHOT_MAX_EXAMPLES")
+        few_shot_max_default = _as_int(reasoner_defaults.get("few_shot_max_examples_per_prompt"), 2)
+        self.few_shot_max_examples_per_prompt = max(
+            0,
+            _as_int(
+                few_shot_max_env if few_shot_max_env is not None else few_shot_max_default,
+                few_shot_max_default,
+            ),
+        )
+
+        self.few_shot_ra_examples: list[dict[str, Any]] = []
+        self.few_shot_prp_examples: list[dict[str, Any]] = []
+        if self.enable_few_shot:
+            ra_path_raw = os.getenv("AFFINITY_FEW_SHOT_RA_FILE") or reasoner_defaults.get("few_shot_ra_file")
+            prp_path_raw = os.getenv("AFFINITY_FEW_SHOT_PRP_FILE") or reasoner_defaults.get("few_shot_prp_file")
+            self.few_shot_ra_examples = self._load_few_shot_examples(ra_path_raw, expected_target_type="RA")
+            self.few_shot_prp_examples = self._load_few_shot_examples(prp_path_raw, expected_target_type="PRP")
 
     def _endpoint_for_logs(self) -> str:
         if self._resolved_base_url:
@@ -372,6 +397,175 @@ Return your answer in strict JSON format:
                 pass
         return s
 
+    @staticmethod
+    def _compact_text(value: Any, max_len: int = 600) -> str:
+        txt = re.sub(r"\s+", " ", str(value or "")).strip()
+        return txt[:max_len]
+
+    def _resolve_repo_path(self, path_raw: Any) -> Path | None:
+        if path_raw is None:
+            return None
+        raw = str(path_raw).strip()
+        if not raw:
+            return None
+        path = Path(raw).expanduser()
+        if path.is_absolute():
+            return path
+        repo_root = Path(__file__).resolve().parents[2]
+        return repo_root / path
+
+    def _load_few_shot_examples(self, path_raw: Any, expected_target_type: str) -> list[dict[str, Any]]:
+        expected = str(expected_target_type).strip().upper()
+        path = self._resolve_repo_path(path_raw)
+        if path is None:
+            return []
+        if not path.exists():
+            print(f"Warning: few-shot file not found for {expected}: {path}")
+            return []
+
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except Exception as exc:
+            print(f"Warning: failed to load few-shot file for {expected}: {path} ({exc})")
+            return []
+
+        items = payload.get("examples") if isinstance(payload, dict) else payload
+        if not isinstance(items, list):
+            print(f"Warning: invalid few-shot format for {expected}: {path} (expected a list under 'examples')")
+            return []
+
+        out: list[dict[str, Any]] = []
+        for idx, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+
+            item_type = _as_str(item.get("target_type"), expected).upper()
+            if item_type != expected:
+                continue
+
+            abstract = self._compact_text(item.get("abstract"), max_len=900)
+            if not abstract:
+                continue
+
+            labels: list[dict[str, Any]] = []
+
+            # Preferred schema: targets: [{target_id, score, rationale?}, ...]
+            targets_raw = item.get("targets")
+            if isinstance(targets_raw, list):
+                for target in targets_raw:
+                    if not isinstance(target, dict):
+                        continue
+                    target_id = self._compact_text(target.get("target_id"), max_len=120)
+                    if not target_id:
+                        continue
+                    score_raw = target.get("score")
+                    if score_raw is None:
+                        continue
+                    try:
+                        score = float(score_raw)
+                    except Exception:
+                        continue
+                    labels.append(
+                        {
+                            "target_id": target_id,
+                            "score": max(0.0, min(100.0, score)),
+                            "rationale": self._compact_text(target.get("rationale"), max_len=300),
+                        }
+                    )
+
+            # Compatibility schema: target_ids/scores/rationales arrays with aligned positions.
+            if not labels:
+                target_ids_raw = item.get("target_ids")
+                scores_raw = item.get("scores")
+                rationales_raw = item.get("rationales")
+                if isinstance(target_ids_raw, list) and isinstance(scores_raw, list):
+                    rationales_list = rationales_raw if isinstance(rationales_raw, list) else []
+                    for i, target_id_raw in enumerate(target_ids_raw):
+                        target_id = self._compact_text(target_id_raw, max_len=120)
+                        if not target_id or i >= len(scores_raw):
+                            continue
+                        try:
+                            score = float(scores_raw[i])
+                        except Exception:
+                            continue
+                        rationale_raw = rationales_list[i] if i < len(rationales_list) else ""
+                        labels.append(
+                            {
+                                "target_id": target_id,
+                                "score": max(0.0, min(100.0, score)),
+                                "rationale": self._compact_text(rationale_raw, max_len=300),
+                            }
+                        )
+
+            # Legacy schema: a single target_id/score/rationale triple.
+            if not labels:
+                target_id = self._compact_text(item.get("target_id"), max_len=120)
+                if target_id:
+                    score_raw = item.get("score")
+                    if score_raw is not None:
+                        try:
+                            score = float(score_raw)
+                            labels.append(
+                                {
+                                    "target_id": target_id,
+                                    "score": max(0.0, min(100.0, score)),
+                                    "rationale": self._compact_text(item.get("rationale"), max_len=300),
+                                }
+                            )
+                        except Exception:
+                            pass
+
+            if not labels:
+                continue
+
+            out.append(
+                {
+                    "id": self._compact_text(item.get("id") or f"{expected}_{idx}", max_len=80),
+                    "target_type": expected,
+                    "abstract": abstract,
+                    # Preserve legacy top-level keys for compatibility.
+                    "target_id": labels[0]["target_id"],
+                    "score": labels[0]["score"],
+                    "rationale": labels[0]["rationale"],
+                    "targets": labels,
+                }
+            )
+
+        return out
+
+    def _format_few_shot_block(self, target_type: str) -> str:
+        if not self.enable_few_shot:
+            return ""
+
+        src = self.few_shot_prp_examples if str(target_type).upper() == "PRP" else self.few_shot_ra_examples
+        if not src:
+            return ""
+
+        if self.few_shot_max_examples_per_prompt <= 0:
+            selected = src
+        else:
+            selected = src[: self.few_shot_max_examples_per_prompt]
+
+        lines = ["Few-shot scoring examples for calibration references:"]
+        for i, ex in enumerate(selected, start=1):
+            lines.append(f"Example {i}:")
+            lines.append(f"- Abstract: {ex['abstract']}")
+            targets = ex.get("targets") if isinstance(ex.get("targets"), list) else []
+            if targets:
+                for j, target in enumerate(targets, start=1):
+                    lines.append(f"- Label {j} Target ID: {target.get('target_id', '')}")
+                    lines.append(f"- Label {j} Score: {float(target.get('score', 0.0)):.1f}")
+                    rationale = self._compact_text(target.get("rationale"), max_len=300)
+                    if rationale:
+                        lines.append(f"- Label {j} Rationale: {rationale}")
+            else:
+                lines.append(f"- Target ID: {ex['target_id']}")
+                lines.append(f"- Score: {float(ex['score']):.1f}")
+                if ex.get("rationale"):
+                    lines.append(f"- Rationale: {ex['rationale']}")
+        lines.append("Use these only as scoring calibration references; evaluate the current abstract independently.")
+        return "\n".join(lines) + "\n\n"
+
     def _normalize_batch_scores(self, data: dict, targets: list) -> dict:
         """Normalize model response keys and map ordinal keys back to target IDs.
         Tries multiple strategies: exact match, ordinal, substring, fuzzy match.
@@ -438,6 +632,7 @@ Return your answer in strict JSON format:
         """Build prompt for affinity evaluation."""
         required_ids_text = ", ".join(required_ids)
         if target_type == "PRP":
+            few_shot_block = self._format_few_shot_block("PRP")
             return (
                 "Evaluate PRP affinities for the abstract. "
                 "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
@@ -446,12 +641,14 @@ Return your answer in strict JSON format:
                 "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
                 "- Values must be numbers in [0,100].\n"
                 f"Required IDs: {required_ids_text}\n"
+                f"{few_shot_block}"
                 f"Abstract:\n{abstract}\n\n"
                 f"Primary Research Programmes:\n{targets_text}\n\n"
                 "Output JSON example:\n"
                 "{\"<ID_FROM_INPUT_1>\": 85, \"<ID_FROM_INPUT_2>\": 42}\n\n"
             )
         else:  # RA type
+            few_shot_block = self._format_few_shot_block("RA")
             return (
                 "Evaluate RA question affinities for the abstract. "
                 "Score the abstract’s relevance to the research question from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the questions’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the questions’s core problem); 71–100 = High relevance (directly and substantially addresses the questions’s main objectives).\n"
@@ -460,6 +657,7 @@ Return your answer in strict JSON format:
                 "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
                 "- Values must be numbers in [0,100].\n"
                 f"Required IDs: {required_ids_text}\n"
+                f"{few_shot_block}"
                 f"Abstract:\n{abstract}\n\n"
                 f"Research questions:\n{targets_text}\n\n"
                 "Output JSON example:\n"
@@ -475,6 +673,7 @@ Return your answer in strict JSON format:
     ) -> str:
         """Build a PRP prompt that includes explicit in-scope/out-of-scope metadata."""
         required_ids_text = ", ".join(required_ids)
+        few_shot_block = self._format_few_shot_block("PRP")
         return (
             "Evaluate PRP scope and PRP affinities for the abstract. "
             "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
@@ -494,6 +693,7 @@ Return your answer in strict JSON format:
             "- affinity_scores: include ALL required IDs exactly once; do not add or rename keys.\n"
             "- affinity_scores values: numbers in [0,100].\n"
             f"Required IDs: {required_ids_text}\n\n"
+            f"{few_shot_block}"
             f"Abstract:\n{abstract}\n\n"
             f"General PRP description (scope anchor):\n{general_prp_description}\n\n"
             f"Primary Research Programmes:\n{targets_text}\n\n"

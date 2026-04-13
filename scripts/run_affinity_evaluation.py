@@ -168,6 +168,17 @@ def parse_args() -> argparse.Namespace:
         default=PRP_SCOPE_FALLBACK_MODE,
         help="Fallback mode when PRP scope JSON is invalid (strict=fail, legacy_scores=use legacy PRP scoring)",
     )
+    parser.add_argument(
+        "--enable-few-shot",
+        dest="enable_few_shot",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Override few-shot prompting for this run. "
+            "Use --enable-few-shot or --no-enable-few-shot. "
+            "Default: follow AFFINITY_ENABLE_FEW_SHOT env var, then settings.yaml."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -271,7 +282,7 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str, Option
     return abstracts, ra, prp, prp_name_col, prp_desc_col
 
 
-def init_models(ra_df: pd.DataFrame) -> tuple[EmbeddingModel, RAClassifier, LLMReasoner]:
+def init_models(ra_df: pd.DataFrame, enable_few_shot: Optional[bool] = None) -> tuple[EmbeddingModel, RAClassifier, LLMReasoner]:
     embedder = EmbeddingModel(model_name=EMBED_MODEL)
     classifier = RAClassifier(embedder, ra_df, text_column="Question_Cleaned")
     llm_model, rpm, base_url, api_key = load_config(CFG_PATH)
@@ -281,6 +292,7 @@ def init_models(ra_df: pd.DataFrame) -> tuple[EmbeddingModel, RAClassifier, LLMR
         requests_per_minute=rpm,
         base_url=base_url,
         api_key=api_key,
+        enable_few_shot=enable_few_shot,
     )
     return embedder, classifier, reasoner
 
@@ -491,7 +503,7 @@ def main():
     timing_logger = AffinityTimingLogger.from_results_dir(RESULTS_DIR)
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
-    _, classifier, reasoner = init_models(ra)
+    _, classifier, reasoner = init_models(ra, enable_few_shot=args.enable_few_shot)
     general_prp_description = ""
     if args.mode in {"prp", "both"}:
         general_prp_description = _get_general_prp_description(prp, prp_name_col, prp_desc_col)

@@ -16,14 +16,18 @@ runtime:
     prp_min_affinity:
     prp_membership_confidence_min: 10
     prp_scope_fallback_mode: legacy_scores # The abstract is scored against all PRPs (including General), and no out-of-scope zeroing rule is applied for that abstract.
-    affinity_debug: false
+    affinity_debug: true
   llm_reasoner:
     temperature: 0
     max_retries: 3
     timeout_seconds: 60
     requests_per_minute_default_cloud: 3
     requests_per_minute_default_local: 9999
-    micro_batch_size: 48 # Set it to >1 to ennable multiple RA questions per prompt, which can improve throughput but may increase latency and memory usage.
+    micro_batch_size: 48 # Set it to >1 to enable multiple RA questions per prompt, which can improve throughput but may increase latency and memory usage.
+    enable_few_shot: false
+    few_shot_ra_file: data/prompts/few_shot_ra.yaml
+    few_shot_prp_file: data/prompts/few_shot_prp.yaml
+    few_shot_max_examples_per_prompt: 3
 
 models:
   embedding_model: all-mpnet-base-v2
@@ -62,9 +66,9 @@ models:
       models_env_var: AFFINITY_BENCHMARK_MODELS
       backend_env_var: AFFINITY_BENCHMARK_BACKEND
       models:
-        - name: llama3.1:latest
+        - name: gemma4:31b-cloud
           backend: local
-          model: llama3.1:latest
+          model: gemma4:31b-cloud
           enabled: true
         - name: "gpt-5.4-nano"
           backend: cloud

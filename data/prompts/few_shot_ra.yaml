@@ -1,0 +1,35 @@
+version: 1
+examples:
+  - id: ra_high_1
+    target_type: RA
+    abstract: >-
+      The paper proposes probabilistic transmission expansion planning under
+      renewable uncertainty and evaluates long-term adequacy and flexibility
+      metrics across multiple scenarios.
+    targets:
+      - target_id: "42"
+        score: 88
+        rationale: Direct alignment with uncertainty-aware planning methods.
+      - target_id: "43"
+        score: 64
+        rationale: Also related to operational adequacy and flexibility under uncertainty.
+
+  - id: ra_mid_1
+    target_type: RA
+    abstract: >-
+      This work studies market dispatch and operational reserve procurement for
+      mixed thermal-renewable systems with short-term scheduling constraints.
+    targets:
+      - target_id: "43"
+        score: 58
+        rationale: Related to system operations and uncertainty, but not primarily planning-process design.
+
+  - id: ra_low_1
+    target_type: RA
+    abstract: >-
+      A convolutional neural network detects insulator defects from UAV images
+      for maintenance workflows.
+    targets:
+      - target_id: "42"
+        score: 8
+        rationale: Minimal connection to power-system planning objectives.
