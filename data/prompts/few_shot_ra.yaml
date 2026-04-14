@@ -1,35 +1,51 @@
 version: 1
 examples:
-  - id: ra_high_1
+  - id: id_20
     target_type: RA
     abstract: >-
-      The paper proposes probabilistic transmission expansion planning under
-      renewable uncertainty and evaluates long-term adequacy and flexibility
-      metrics across multiple scenarios.
+      To integrate weak onshore grids, some grid forming (gfm) control schemes taking advantage of dc voltage synchronization have been proposed for modular multilevel converter-based high-voltage direct current (mmc-hvdc) systems. in these control schemes, the sub-module (sm) capacitor energy is only used for grid synchronization. since the sm capacitor is an energy storage device, it has the potential to actively regulate the stored energy. to fully exploit the energy management capability of mmc, a dual grid forming control scheme with energy regulation capability is presented in this paper. the proposed control scheme enables grid forming for both onshore and offshore mmc stations. meanwhile, the capacitor energy of mmcs can be flexibly regulated to provide frequency support for the onshore grid. to verify the effectiveness of the proposed control scheme, case studies are first carried out in a point-to-point offshore wind farms (owfs) integrated hvdc system. in addition, the frequency support performance is evaluated in a 3-area 4-machine grid integrated with two owfs-hvdc systems. finally, a single-terminal three-phase mmc prototype is developed to test the voltage decoupling and energy management capabilities of the proposed control strategy.
     targets:
-      - target_id: "42"
-        score: 88
-        rationale: Direct alignment with uncertainty-aware planning methods.
-      - target_id: "43"
-        score: 64
-        rationale: Also related to operational adequacy and flexibility under uncertainty.
+      - target_id: "4"
+        score: 90
+        rationale: Directly develops inverter (MMC) control design for high-IBR grids.
+      - target_id: "10"
+        score: 70
+        rationale: Examines grid-forming roles in HVDC-connected systems. Allthough, it does not directly determine appropiate mix, location or capabilities of grid-forming and grid-following inverters to mitigate stability problems.
+      - target_id: "29"
+        score: 60
+        rationale: Maps MMC capabilities to frequency support service provision.
+      - target_id: "14"
+        score: 0
+        rationale: No communication requirements addressed.
 
-  - id: ra_mid_1
+  - id: id_25
     target_type: RA
     abstract: >-
-      This work studies market dispatch and operational reserve procurement for
-      mixed thermal-renewable systems with short-term scheduling constraints.
+      This paper introduces a new fault location method for hybrid ac/dc complex transmission grids containing distributed energy resources (ders) and modular multilevel converter-high voltage direct current (hvdc) lines. digital fault recorders (dfr) in the dc grid cannot observe faults occurring in the ac network and vice-versa. the proposed algorithm accurately locates faults irrespective of their location using a subset of dfrs selected by a k-means clustering method. the algorithm is tested using an ac/dc complex transmission network formed by merging the modified ieee 39 bus transmission system and the cigre b4 dc grid test systems under several fault conditions using emtp-rv and matlab as simulation tools.
     targets:
-      - target_id: "43"
-        score: 58
-        rationale: Related to system operations and uncertainty, but not primarily planning-process design.
-
-  - id: ra_low_1
+      - target_id: "2"
+        score: 95
+        rationale: Directly proposes fault location method for protection in AC/DC grids.
+      - target_id: "25"
+        score: 60
+        rationale: Uses measurements relevant to system monitoring metrics. It can be potentially useful for situational awareness, but the paper does not directly address this application or its requirements.
+      - target_id: "19"
+        score: 40
+        rationale: Fault location can aid operational decision-making, however, the abstract is not directly focused on decision-making tools or processes.
+  - id: id_34
     target_type: RA
     abstract: >-
-      A convolutional neural network detects insulator defects from UAV images
-      for maintenance workflows.
+      The uncertainty of electricity prices poses a challenge to all market participants as their decisions highly depend on the accuracy of price forecasts. prediction intervals become an efficient method to quantify the uncertainties that reside in electricity price forecasts. in this paper, we propose a probabilistic electricity price forecast with optimal prediction interval method that considers both reliability and sharpness requirements. taking reliability and sharpness into account, we ensure the prediction interval has a narrow width without sacrificing reliability. in the proposed method, the quantile regression is utilized to estimate the upper and lower bounds of the prediction intervals to avoid electricity price distribution assumption. in addition, the extreme learning machine (elm) method is embedded in the forecast method to capture the nonlinear relationship within price data, and its tuning parameters are optimized using the augmented lagrangian relaxation method in this paper. the effectiveness of the proposed probabilistic forecast method is demonstrated using data from various electricity markets.
     targets:
-      - target_id: "42"
-        score: 8
-        rationale: Minimal connection to power-system planning objectives.
+      - target_id: "1"
+        score: 0
+        rationale: No relation to active power balance or frequency
+      - target_id: "30"
+        score: 5
+        rationale: Allthouh the paper related to system performance forecasting, it does not directly translates it into new technology solutions.
+      - target_id: "23"
+        score: 41
+        rationale: Integrated data and analytics for operational insight. However, market data analytics might be less relevant for real-time situational awareness and decision-making in control rooms compared to physical system monitoring and forecasting.
+      - target_id: "27"
+        score: 50
+        rationale: It uses one kind of probabilities forecasting for electricity prices which could be used into operational decision support. Howver, market data might be less relevant for real-time situational awareness and decision-making in control rooms compared to physical system monitoring and forecasting.

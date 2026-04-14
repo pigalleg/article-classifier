@@ -6,17 +6,17 @@ paths:
 
 runtime:
   affinity:
-    top_k: 6 # Number of research questions to consider for affinity scoring. 
+    top_k: 48 # Number of research questions to consider for affinity scoring. 
     save_every: 2
     mode: both
     ra_retrieval_mode: prp_only
     abstracts_file: abstracts_cleaned.csv
     prp_input: data/results/prp_affinities.csv
-    prp_top_n: 3 # For ra_retrieval_mode = prp_only or prp_filter, it selects the RA question from the top N PRPs by affinity score; set to 1 to always select from the single highest-affinity PRP.
+    prp_top_n: 6 # For ra_retrieval_mode = prp_only or prp_filter, it selects the RA question from the top N PRPs by affinity score; set to 1 to always select from the single highest-affinity PRP.
     prp_min_affinity:
     prp_membership_confidence_min: 10
     prp_scope_fallback_mode: legacy_scores # The abstract is scored against all PRPs (including General), and no out-of-scope zeroing rule is applied for that abstract.
-    affinity_debug: true
+    affinity_debug: false
   llm_reasoner:
     temperature: 0
     max_retries: 3
