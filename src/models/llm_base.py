@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import json
 import os
 import re
 import time
@@ -215,3 +216,143 @@ class LLMBase:
     def _fuzzy_match_key(key: str, candidate_ids: list[str]) -> str | None:
         matches = difflib.get_close_matches(key, candidate_ids, n=1, cutoff=0.6)
         return matches[0] if matches else None
+
+    @staticmethod
+    def _coerce_score(value: Any) -> float | None:
+        try:
+            if value is None:
+                raise TypeError("Missing score")
+            score = float(value)
+            return max(0.0, min(100.0, score))
+        except Exception:
+            return None
+
+    def _extract_affinity_value(self, value: Any) -> tuple[float | None, str | None]:
+        if isinstance(value, dict):
+            score_raw = value.get("score", value.get("affinity", value.get("value")))
+            reason = self._compact_reason(value.get("reason", value.get("rationale", value.get("explanation"))))
+        else:
+            score_raw = value
+            reason = None
+        return self._coerce_score(score_raw), reason
+
+    @staticmethod
+    def _chunk_targets(targets: list, chunk_size: int) -> list:
+        if chunk_size <= 0:
+            return [targets]
+        return [targets[i:i + chunk_size] for i in range(0, len(targets), chunk_size)]
+
+    def _normalize_batch_scores(self, data: dict, targets: list, enable_reasons: bool | None = None) -> dict:
+        out: dict[str, Any] = {}
+        id_to_raw = {self._normalize_target_id(t.get("id")): t.get("id") for t in targets}
+        use_reasons = getattr(self, "enable_affinity_reasons", False) if enable_reasons is None else bool(enable_reasons)
+
+        for raw_key, raw_score in data.items():
+            key = str(raw_key).strip()
+            normalized_key = self._normalize_target_id(key)
+            mapped_key = None
+
+            if normalized_key in id_to_raw:
+                mapped_key = self._normalize_target_id(id_to_raw[normalized_key])
+            else:
+                m = re.fullmatch(r"(?:RA|PRP)?\s*(\d+)", key, flags=re.IGNORECASE)
+                if m:
+                    idx = int(m.group(1)) - 1
+                    if 0 <= idx < len(targets):
+                        mapped_key = self._normalize_target_id(targets[idx].get("id"))
+
+                if mapped_key is None:
+                    key_lower = key.lower()
+                    for norm_id, raw_id in id_to_raw.items():
+                        raw_lower = str(raw_id).lower()
+                        if key_lower in raw_lower or raw_lower in key_lower:
+                            mapped_key = norm_id
+                            break
+
+                if mapped_key is None:
+                    targets_ids = list(id_to_raw.values())
+                    matches = self._fuzzy_match_key(key, targets_ids)
+                    if matches:
+                        mapped_key = self._normalize_target_id(id_to_raw[self._normalize_target_id(matches)])
+
+            if mapped_key is None:
+                continue
+
+            if isinstance(raw_score, dict):
+                score_raw = raw_score.get("score", raw_score.get("affinity", raw_score.get("value")))
+                reason_raw = raw_score.get("reason", raw_score.get("rationale", raw_score.get("explanation")))
+                score = self._coerce_score(score_raw)
+                if use_reasons:
+                    out[mapped_key] = {
+                        "score": score,
+                        "reason": self._compact_reason(reason_raw, max_len=350) if reason_raw is not None else None,
+                    }
+                else:
+                    out[mapped_key] = score
+                continue
+
+            score = self._coerce_score(raw_score)
+            if use_reasons:
+                out[mapped_key] = {
+                    "score": score,
+                    "reason": None,
+                }
+            else:
+                out[mapped_key] = score
+
+        return out
+
+    def _call_json_prompt_with_retries(
+        self,
+        prompt: str,
+        *,
+        temperature: float = 0.0,
+        debug: bool = False,
+        log_tag: str = "llm",
+    ) -> dict | None:
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                self._apply_rate_limit()
+                resp = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                )
+                self._last_request_time = time.time()
+
+                message_content = getattr(resp.choices[0].message, "content", None) if getattr(resp, "choices", None) else None
+                reply = str(message_content).strip() if message_content is not None else str(resp)
+
+                if debug:
+                    print(f"[{log_tag}] raw reply: {reply}")
+
+                json_text = self._extract_json_from_reply(reply)
+                try:
+                    data = json.loads(json_text)
+                    return data if isinstance(data, dict) else None
+                except json.JSONDecodeError as je:
+                    if debug:
+                        print(f"[{log_tag}] JSON parse failed: {je}")
+                        print(f"[{log_tag}] raw content: {json_text}")
+                    if attempt < self.max_retries:
+                        time.sleep(2 * attempt)
+                    else:
+                        return None
+
+            except Exception as e:
+                if self._is_model_unavailable_error(e):
+                    base_url = self._endpoint_for_logs()
+                    raise RuntimeError(
+                        f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
+                        f"Original error: {e}"
+                    ) from e
+
+                if debug:
+                    print(f"[{log_tag}] attempt {attempt} failed: {e}")
+
+                if attempt < self.max_retries:
+                    time.sleep(2 * attempt)
+                else:
+                    return None
+
+        return None

@@ -17,6 +17,18 @@ runtime:
     prp_membership_confidence_min: 10
     prp_scope_fallback_mode: legacy_scores # The abstract is scored against all PRPs (including General), and no out-of-scope zeroing rule is applied for that abstract.
     affinity_debug: false
+    adjudication:
+      mode: both  # 'both', 'prp', or 'ra'
+      input_root: data/results/affinity_benchmark
+      prp_input_file: merged_prp_affinities.csv
+      ra_input_file: merged_ra_affinities.csv
+      prp_output_file: adjudicated_prp_affinities.csv
+      prp_output_model_rows_file: adjudicated_prp_model_rows.csv
+      ra_output_file: adjudicated_ra_affinities.csv
+      ra_output_model_rows_file: adjudicated_ra_model_rows.csv
+      min_agreement: 1.0
+      min_agreement_mean: 1.0
+      first_n_abstracts: null
   llm_reasoner:
     temperature: 0
     max_retries: 3

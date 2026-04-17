@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -241,92 +240,6 @@ class LLMAffinityReasoner(LLMBase):
         lines.append("Use these only as scoring calibration references; evaluate the current abstract independently.")
         return "\n".join(lines) + "\n\n"
 
-    def _normalize_batch_scores(self, data: dict, targets: list) -> dict:
-        out = {}
-        id_to_raw = {self._normalize_target_id(t.get("id")): t.get("id") for t in targets}
-
-        for raw_key, raw_score in data.items():
-            key = str(raw_key).strip()
-            normalized_key = self._normalize_target_id(key)
-            mapped_key = None
-
-            if normalized_key in id_to_raw:
-                mapped_key = self._normalize_target_id(id_to_raw[normalized_key])
-            else:
-                m = re.fullmatch(r"(?:RA|PRP)?\s*(\d+)", key, flags=re.IGNORECASE)
-                if m:
-                    idx = int(m.group(1)) - 1
-                    if 0 <= idx < len(targets):
-                        mapped_key = self._normalize_target_id(targets[idx].get("id"))
-
-                if mapped_key is None:
-                    key_lower = key.lower()
-                    for norm_id, raw_id in id_to_raw.items():
-                        raw_lower = str(raw_id).lower()
-                        if key_lower in raw_lower or raw_lower in key_lower:
-                            mapped_key = norm_id
-                            break
-
-                if mapped_key is None:
-                    targets_ids = list(id_to_raw.values())
-                    matches = self._fuzzy_match_key(key, targets_ids)
-                    if matches:
-                        mapped_key = self._normalize_target_id(id_to_raw[self._normalize_target_id(matches)])
-
-            if mapped_key is None:
-                continue
-
-            try:
-                if isinstance(raw_score, dict):
-                    score_raw = raw_score.get("score", raw_score.get("affinity", raw_score.get("value")))
-                    reason_raw = raw_score.get("reason", raw_score.get("rationale", raw_score.get("explanation")))
-                    if score_raw is None:
-                        raise TypeError("Missing score")
-                    score = float(score_raw)
-                    score = max(0.0, min(100.0, score))
-                    if self.enable_affinity_reasons:
-                        out[mapped_key] = {
-                            "score": score,
-                            "reason": self._compact_reason(reason_raw, max_len=350) if reason_raw is not None else None,
-                        }
-                    else:
-                        out[mapped_key] = score
-                else:
-                    val = float(raw_score)
-                    val = max(0.0, min(100.0, val))
-                    out[mapped_key] = val
-            except (ValueError, TypeError):
-                if isinstance(raw_score, dict):
-                    reason_raw = raw_score.get("reason", raw_score.get("rationale", raw_score.get("explanation")))
-                    if self.enable_affinity_reasons:
-                        out[mapped_key] = {
-                            "score": None,
-                            "reason": self._compact_reason(reason_raw, max_len=350) if reason_raw is not None else None,
-                        }
-                    else:
-                        out[mapped_key] = None
-                else:
-                    out[mapped_key] = None
-
-        return out
-
-    def _extract_affinity_value(self, value: Any) -> tuple[float | None, str | None]:
-        if isinstance(value, dict):
-            score_raw = value.get("score", value.get("affinity", value.get("value")))
-            reason = self._compact_reason(value.get("reason", value.get("rationale", value.get("explanation"))))
-        else:
-            score_raw = value
-            reason = None
-
-        try:
-            if score_raw is None:
-                raise TypeError("Missing score")
-            score = float(score_raw)
-            score = max(0.0, min(100.0, score))
-        except Exception:
-            score = None
-        return score, reason
-
     def _build_affinity_prompt(
         self,
         abstract: str,
@@ -435,12 +348,6 @@ class LLMAffinityReasoner(LLMBase):
             f"Primary Research Programmes:\n{targets_text}\n\n"
         )
 
-    @staticmethod
-    def _chunk_targets(targets: list, chunk_size: int) -> list:
-        if chunk_size <= 0:
-            return [targets]
-        return [targets[i:i + chunk_size] for i in range(0, len(targets), chunk_size)]
-
     def _rate_affinity_batch_single_call(self, abstract: str, targets: list, target_type: str) -> dict:
         if not abstract or not targets:
             return {}
@@ -460,56 +367,15 @@ class LLMAffinityReasoner(LLMBase):
         prompt = self._build_affinity_prompt(abstract, targets_text, target_type, required_ids)
         if self.affinity_debug:
             print(f"[rate_affinity_batch] prompt:\n{prompt}")
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                self._apply_rate_limit()
-
-                resp = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.0,
-                )
-                self._last_request_time = time.time()
-
-                message_content = getattr(resp.choices[0].message, "content", None) if getattr(resp, "choices", None) else None
-                reply = str(message_content).strip() if message_content is not None else str(resp)
-
-                if self.affinity_debug:
-                    print(f"[rate_affinity_batch] raw reply: {reply}")
-
-                json_text = self._extract_json_from_reply(reply)
-
-                try:
-                    data = json.loads(json_text)
-                    return self._normalize_batch_scores(data, targets)
-
-                except json.JSONDecodeError as je:
-                    if self.affinity_debug:
-                        print(f"[rate_affinity_batch] JSON parse failed: {je}")
-                        print(f"[rate_affinity_batch] raw content: {json_text}")
-
-                    if attempt < self.max_retries:
-                        time.sleep(2 * attempt)
-                    else:
-                        return {}
-
-            except Exception as e:
-                if self._is_model_unavailable_error(e):
-                    base_url = self._endpoint_for_logs()
-                    raise RuntimeError(
-                        f"Configured model '{self.model}' is unavailable on endpoint '{base_url}'. "
-                        f"Original error: {e}"
-                    ) from e
-
-                if self.affinity_debug:
-                    print(f"[rate_affinity_batch] attempt {attempt} failed: {e}")
-
-                if attempt < self.max_retries:
-                    time.sleep(2 * attempt)
-                else:
-                    return {}
-
-        return {}
+        data = self._call_json_prompt_with_retries(
+            prompt,
+            temperature=0.0,
+            debug=self.affinity_debug,
+            log_tag="rate_affinity_batch",
+        )
+        if not isinstance(data, dict):
+            return {}
+        return self._normalize_batch_scores(data, targets, enable_reasons=self.enable_affinity_reasons)
 
     def rate_affinity(self, abstract: str, target_text: str, target_type: str = "RA"):
         if not abstract or not target_text:
@@ -560,7 +426,11 @@ class LLMAffinityReasoner(LLMBase):
         if not isinstance(affinity_scores_raw, dict):
             raise ValueError("Missing or invalid 'affinity_scores' (object required)")
 
-        scores = self._normalize_batch_scores(affinity_scores_raw, targets)
+        scores = self._normalize_batch_scores(
+            affinity_scores_raw,
+            targets,
+            enable_reasons=self.enable_affinity_reasons,
+        )
         expected_ids = [self._normalize_target_id(t.get("id")) for t in targets]
         id_to_text = {self._normalize_target_id(t.get("id")): str(t.get("text", "")) for t in targets}
 
