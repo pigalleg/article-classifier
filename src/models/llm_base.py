@@ -208,7 +208,7 @@ class LLMBase:
         return txt[:max_len]
 
     @staticmethod
-    def _compact_reason(value: Any, max_len: int = 350) -> str | None:
+    def _compact_reason(value: Any, max_len: int = 1000) -> str | None:
         txt = re.sub(r"\s+", " ", str(value or "")).strip()
         return txt[:max_len] if txt else None
 
@@ -285,7 +285,7 @@ class LLMBase:
                 if use_reasons:
                     out[mapped_key] = {
                         "score": score,
-                        "reason": self._compact_reason(reason_raw, max_len=350) if reason_raw is not None else None,
+                        "reason": self._compact_reason(reason_raw, max_len=1000) if reason_raw is not None else None,
                     }
                 else:
                     out[mapped_key] = score

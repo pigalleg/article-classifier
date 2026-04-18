@@ -53,7 +53,7 @@ models:
     backend_env_var: LLM_BACKEND
     model_env_var: OPENAI_MODEL
     base_url_env_var: OPENAI_BASE_URL
-    api_key_env_var: OPENAI_API_KEY
+    api_key_env_var: OPENAI_CLOUD_API_KEY
     rpm_env_var: OPENAI_REQUESTS_PER_MINUTE
 
     # Local OpenAI-compatible backend defaults (Ollama).
@@ -65,11 +65,11 @@ models:
 
     # Cloud backend defaults.
     cloud:
-      model: gpt-4o-mini
+      model: gpt-5.4-mini #gpt-5.4
       # Keep null to use SDK/provider default base URL.
       base_url:
       # Name of env var that holds the cloud key.
-      api_key_env: OPENAI_API_KEY
+      api_key_env: OPENAI_CLOUD_API_KEY
       requests_per_minute_default: 500
 
     # Models used by affinity multi-model benchmarking.
@@ -87,21 +87,21 @@ models:
           backend: local
           model: ministral-3:14b-cloud
           enabled: false
-        - name: "gpt-5.4-nano"
+        - name: gpt-5.4-nano
           backend: cloud
-          model: "gpt-5.4-nano"
+          model: gpt-5.4-nano
           base_url:
           api_key_env: OPENAI_CLOUD_API_KEY
           enabled: false
-        - name: "gpt-5.4-mini"
+        - name: gpt-5.4-mini
           backend: cloud
-          model: "gpt-5.4-mini"
+          model: gpt-5.4-mini
           base_url:
           api_key_env: OPENAI_CLOUD_API_KEY
           enabled: false
-        - name: "gemini-3-flash-preview"
+        - name: gemini-3-flash-preview
           backend: cloud
-          model: "gemini-3-flash-preview"
+          model: gemini-3-flash-preview
           base_url: https://generativelanguage.googleapis.com/v1beta/openai
           api_key_env: GOOGLE_API_KEY
           enabled: false
