@@ -30,14 +30,14 @@ runtime:
       min_agreement_mean: 1.0
       first_n_abstracts: null
   llm_reasoner:
-    temperature: 0
+    temperature: 0.1
     max_retries: 3
     timeout_seconds: 60
     requests_per_minute_default_cloud: 3
     requests_per_minute_default_local: 9999
     micro_batch_size: 48 # Set it to >1 to enable multiple RA questions per prompt, which can improve throughput but may increase latency and memory usage.
-    enable_few_shot: false
-    enable_affinity_reasons: false
+    enable_few_shot: true
+    enable_affinity_reasons: true
     few_shot_ra_file: data/prompts/few_shot_ra.yaml
     few_shot_prp_file: data/prompts/few_shot_prp.yaml
     few_shot_max_examples_per_prompt: 3
@@ -69,7 +69,7 @@ models:
       # Keep null to use SDK/provider default base URL.
       base_url:
       # Name of env var that holds the cloud key.
-      api_key_env: OPENAI_CLOUD_API_KEY
+      api_key_env: #OPENAI_CLOUD_API_KEY
       requests_per_minute_default: 500
 
     # Models used by affinity multi-model benchmarking.
@@ -83,60 +83,46 @@ models:
           backend: local
           model: gemma4:31b-cloud
           enabled: false
-        - name: ministral-3:14b-cloud # fast
+
+        - name: ministral-3:14b-cloud
           backend: local
           model: ministral-3:14b-cloud
           enabled: false
-        - name: gpt-5.4-nano
-          backend: cloud
-          model: gpt-5.4-nano
-          base_url:
-          api_key_env: OPENAI_CLOUD_API_KEY
-          enabled: false
+
         - name: gpt-5.4-mini
           backend: cloud
           model: gpt-5.4-mini
           base_url:
           api_key_env: OPENAI_CLOUD_API_KEY
           enabled: false
+
+        - name: qwen3.5:397b-cloud
+          backend: local
+          model: qwen3.5:397b-cloud
+          enabled: false
+
+        - name: llama4:16x17b # fast
+          backend: local
+          model: llama4:16x17b
+          enabled: false
+
         - name: gemini-3-flash-preview
           backend: cloud
           model: gemini-3-flash-preview
           base_url: https://generativelanguage.googleapis.com/v1beta/openai
           api_key_env: GOOGLE_API_KEY
           enabled: false
-        - name: mixtral:8x7b # fast
+
+        - name: mistral-large-3:675b-cloud # fast
           backend: local
-          model: mixtral:8x7b
+          model: mistral-large-3:675b-cloud
           enabled: false
-        - name: llama4:16x17b # fast
+
+        - name: deepseek-v3.2:cloud # fast
           backend: local
-          model: llama4:16x17b
+          model: deepseek-v3.2:cloud
           enabled: false
-        - name: qwen2.5:7b # fast
-          backend: local
-          model: qwen2.5:7b
-          enabled: false
-        # - name: llama3.1:8b # fast
-        #   backend: local
-        #   model: llama3.1:8b
-        #   enabled: false
-        # - name: gemma3:4b # fast
-        #   backend: local
-        #   model: gemma3:4b
-        #   enabled: false
-        # - name: mistral:7b # fast
-        #   backend: local
-        #   model: mistral:7b
-        #   enabled: false
-        # - name: phi3:3.8b # fast
-        #   backend: local
-        #   model: phi3:3.8b
-        #   enabled: false
-        # - name: smollm2:1.7b # fast
-        #   backend: local
-        #   model: smollm2:1.7b
-        #   enabled: false
+
 
 thresholds:
   match_score: 0.5
