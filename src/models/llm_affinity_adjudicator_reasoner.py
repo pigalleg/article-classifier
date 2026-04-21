@@ -81,7 +81,7 @@ class LLMAffinityAdjudicatorReasoner(LLMBase):
 
         target_label = "Primary Research Programmes" if str(target_type).upper() == "PRP" else "Research questions"
         return (
-            "You are an adjudicator consolidating affinity assessments from multiple models. "
+            "You are a power systems expert adjudicator consolidating affinity assessments from multiple models. "
             "For each target ID, synthesize the evidence and return a final affinity score from 0 to 100.\n"
             "Return ONLY one JSON object (no extra text).\n"
             "Rules:\n"

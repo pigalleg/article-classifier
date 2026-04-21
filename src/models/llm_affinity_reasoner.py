@@ -262,8 +262,8 @@ class LLMAffinityReasoner(LLMBase):
                 rules_block = "- Values must be numbers in [0,100].\n"
                 example_block = '{"<ID_FROM_INPUT_1>": 85, "<ID_FROM_INPUT_2>": 42}\n\n'
             return (
-                # "You are an expert evaluator of energy and power systems research scope. "
-                "Evaluate Primary Research Programme (PRP) affinities for the abstract. "
+                "You are a power systems expert evaluator assessing research scope. "
+                "Evaluate the affinity between the abstract and a set of Primary Research Programmes (PRP). "
                 "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
                 "Return ONLY one JSON object (no extra text).\n"
                 "Rules:\n"
@@ -290,8 +290,8 @@ class LLMAffinityReasoner(LLMBase):
             rules_block = "- Values must be numbers in [0,100].\n"
             example_block = '{"<ID_FROM_INPUT_1>": 85, "<ID_FROM_INPUT_2>": 42}\n\n'
         return (
-            # "You are an expert evaluator of energy and power systems research scope. "
-            "Evaluate Research Agenda (RA) question affinities for the abstract. "
+            "You are a power systems expert evaluator assessing research scope. "
+            "Evaluate the affinity between the abstract and a set of Research Agenda (RA) questions. "
             "Score the abstract’s relevance to the research question from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the questions’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the questions’s core problem); 71–100 = High relevance (directly and substantially addresses the questions’s main objectives).\n"
             "Return ONLY one JSON object (no extra text).\n"
             "Rules:\n"
@@ -327,8 +327,8 @@ class LLMAffinityReasoner(LLMBase):
             )
             affinity_scores_rule = "- affinity_scores values must be numbers in [0,100].\n"
         return (
-            # "You are an expert evaluator of energy and power systems research scope. "
-            "Evaluate Primary Research Programme (PRP) scope and PRP affinities for the abstract. "
+            "You are a power systems expert evaluator of research scope. "
+            "Evaluate the affinity between the abstract and a set of Primary Research Programmes (PRP). "
             "Score the abstract’s relevance to the program from 0–100 using these ranges: 0–40 = Low or no relevance (topics may be tangentially related but do not directly address the program’s goals); 41–70 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 71–100 = High relevance (directly and substantially addresses the program’s main objectives).\n"
             "An abstract can be outside PRP scope.\n\n"
             "Return ONLY one JSON object (no extra text) with this schema:\n"
