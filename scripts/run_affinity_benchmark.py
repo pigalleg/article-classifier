@@ -218,6 +218,8 @@ def _write_manifest(path: Path, rows: list[dict[str, Any]]) -> None:
         "status",
         "mode",
         "ra_retrieval_mode",
+        "git_commit",
+        "git_branch",
         "output_dir",
         "duration_seconds",
         "error",
