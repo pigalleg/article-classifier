@@ -46,6 +46,11 @@ try:
 except ModuleNotFoundError:
     from util.ollama_gpu import _describe_ollama_gpu_state
 
+try:
+    from scripts.util.metadata import get_run_metadata, write_run_metadata_file, write_run_metadata
+except ModuleNotFoundError:
+    from util.metadata import get_run_metadata, write_run_metadata_file, write_run_metadata
+
 
 def _load_settings(path: Path) -> dict[str, Any]:
     try:
@@ -333,6 +338,13 @@ def main() -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = run_dir / "benchmark_manifest.csv"
 
+    # Record run metadata (git + settings) for reproducibility
+    try:
+        run_meta = get_run_metadata(repo_root=REPO_ROOT, settings_path=CFG_PATH)
+        write_run_metadata_file(run_dir / "run_metadata.json", run_meta)
+    except Exception:
+        run_meta = {"git": {"commit": None, "commit_short": None, "branch": None}}
+
     print(f"Benchmark run directory: {run_dir}")
     print(f"Models to run: {len(profiles)}")
 
@@ -362,6 +374,9 @@ def main() -> None:
             "duration_seconds": "",
             "error": "",
         }
+        # Include git metadata in manifest rows for traceability
+        row["git_commit"] = run_meta.get("git", {}).get("commit_short") if run_meta else None
+        row["git_branch"] = run_meta.get("git", {}).get("branch") if run_meta else None
 
         if args.resume and _is_completed(model_dir, args.mode):
             row["status"] = "skipped"

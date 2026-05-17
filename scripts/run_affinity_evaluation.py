@@ -92,6 +92,18 @@ DATA_DIR = PATH_DEFAULTS.get("data_processed", "data/processed")
 RESULTS_DIR = os.getenv("AFFINITY_RESULTS_DIR") or PATH_DEFAULTS.get("results", "data/results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
+# Record run metadata (git + settings) for reproducibility
+try:
+    from scripts.util.metadata import get_run_metadata, write_run_metadata_file
+except ModuleNotFoundError:
+    from util.metadata import get_run_metadata, write_run_metadata_file
+
+try:
+    run_meta = get_run_metadata(repo_root=Path("."), settings_path=CFG_PATH)
+    write_run_metadata_file(Path(RESULTS_DIR) / "run_metadata.json", run_meta)
+except Exception:
+    run_meta = {"git": {"commit": None, "commit_short": None, "branch": None}}
+
 EMBED_MODEL = (
     os.getenv("AFFINITY_EMBED_MODEL")
     or MODEL_DEFAULTS.get("embedding_model")

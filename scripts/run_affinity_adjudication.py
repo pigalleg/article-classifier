@@ -260,6 +260,9 @@ def _compute_pair_stats(merged_df: pd.DataFrame, target_id_col: str, target_text
 def compute_pair_stats(merged_df: pd.DataFrame, target_id_col: str, target_text_col: str) -> pd.DataFrame:
     return _compute_pair_stats(merged_df, target_id_col=target_id_col, target_text_col=target_text_col)
 
+def affinity_level_fixed(score):
+    return _affinity_level_fixed(score)
+
 
 def _select_divergent_pairs(
     pair_stats: pd.DataFrame,
@@ -766,6 +769,17 @@ def main() -> None:
 
     input_root = Path(args.input_root)
     run_dir = _discover_run_dir(input_root=input_root, run_id=args.run_id)
+    # Record run metadata (git + settings) for reproducibility
+    try:
+        from scripts.util.metadata import get_run_metadata, write_run_metadata_file
+    except ModuleNotFoundError:
+        from util.metadata import get_run_metadata, write_run_metadata_file
+
+    try:
+        run_meta = get_run_metadata(repo_root=REPO_ROOT, settings_path=CFG_PATH)
+        write_run_metadata_file(run_dir / "run_metadata.json", run_meta)
+    except Exception:
+        run_meta = {"git": {"commit": None, "commit_short": None, "branch": None}}
     abstract_lookup = _load_abstract_lookup(settings)
 
     reasoner: Optional[Any] = None
