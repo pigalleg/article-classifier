@@ -6,13 +6,17 @@ Features:
 - Continue-on-error behavior
 - Resume/skip-existing behavior
 - Model list override via AFFINITY_BENCHMARK_MODELS
+- Automatic fallback PRP affinities generation: If PRP affinities are missing,
+  the script falls back to: (1) global data/results/prp_affinities.csv if it exists,
+  or (2) generates an empty PRP affinities file with all abstract-PRP pairs from
+  the data files (useful for comprehensive evaluation without pre-computed scores)
 
 Execution examples (from repo root):
 - Run both PRP and RA stages per model:
     python scripts/run_affinity_benchmark.py --mode both --ra-retrieval-mode prp_only
 - Run PRP stage only:
     python scripts/run_affinity_benchmark.py --mode prp
-- Run RA stage only (expects model-specific PRP files already present):
+- Run RA stage only with automatic fallback (generates all abstract-PRP pairs if needed):
     python scripts/run_affinity_benchmark.py --mode ra --ra-retrieval-mode prp_only
 - Resume an interrupted run id:
     python scripts/run_affinity_benchmark.py --run-id 20260331_120000 --resume
@@ -48,8 +52,10 @@ except ModuleNotFoundError:
 
 try:
     from scripts.util.metadata import get_run_metadata, write_run_metadata_file, write_run_metadata
+    from scripts.util.generate_prp_affinities import generate_empty_prp_affinities
 except ModuleNotFoundError:
     from util.metadata import get_run_metadata, write_run_metadata_file, write_run_metadata
+    from util.generate_prp_affinities import generate_empty_prp_affinities
 
 
 def _load_settings(path: Path) -> dict[str, Any]:
@@ -408,9 +414,21 @@ def main() -> None:
             if args.mode in {"ra", "both"}:
                 prp_input = model_dir / "prp_affinities.csv"
                 if args.ra_retrieval_mode in {"prp_filter", "prp_only"} and not _is_nonempty_file(prp_input):
-                    raise RuntimeError(
-                        f"Missing model-specific PRP input required for {args.ra_retrieval_mode}: {prp_input}"
-                    )
+                    # Generate empty PRP affinities file with all abstract-PRP pairs
+                    print(f"[INFO] Generating empty PRP affinities with all abstract-PRP pairs...")
+                    abstracts_file = REPO_ROOT / "data" / "processed" / "abstracts_cleaned.csv"
+                    prp_file = REPO_ROOT / "data" / "processed" / "primary_programmes.csv"
+                    
+                    if not _is_nonempty_file(abstracts_file) or not _is_nonempty_file(prp_file):
+                        raise RuntimeError(
+                            f"Cannot generate fallback PRP affinities. Missing:\n"
+                            f"  - Abstracts: {abstracts_file}\n"
+                            f"  - PRP domains: {prp_file}\n"
+                            f"Either provide {prp_input} or ensure data files exist."
+                        )
+                    
+                    generate_empty_prp_affinities(prp_input, abstracts_file, prp_file)
+                    print(f"[INFO] Generated fallback PRP affinities: {prp_input}")
         
                 cmd = [
                     sys.executable,
