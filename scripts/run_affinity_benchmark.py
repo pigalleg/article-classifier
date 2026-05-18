@@ -325,6 +325,12 @@ def _build_env(profile: ModelProfile, model_output_dir: Path) -> dict[str, str]:
         env.pop("OPENAI_BASE_URL", None)
 
     if profile.api_key:
+        # Set model-specific api_key_env variable (e.g., GOOGLE_API_KEY for Gemini)
+        if profile.api_key_env:
+            env[profile.api_key_env] = profile.api_key
+            # Tell child process which env var to use for the API key
+            env["OPENAI_API_KEY_ENV_VAR"] = profile.api_key_env
+        # Also set generic OPENAI_API_KEY as fallback for compatibility
         env["OPENAI_API_KEY"] = profile.api_key
 
     if profile.requests_per_minute is not None:

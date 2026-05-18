@@ -183,6 +183,13 @@ def _load_runtime_llm_config(settings: dict[str, Any]) -> tuple[str, int, Option
 
     profile_api_key_env = profile.get("api_key_env") or profile.get("api_key_env_var")
     api_key_source = profile_api_key_env or api_key_env_var
+    
+    # Check if benchmark script passed a model-specific API key env var name
+    # (e.g., GOOGLE_API_KEY for Gemini instead of OPENAI_CLOUD_API_KEY for OpenAI)
+    override_api_key_env_var = os.getenv("OPENAI_API_KEY_ENV_VAR")
+    if override_api_key_env_var:
+        api_key_source = override_api_key_env_var
+    
     effective_api_key = (os.getenv(str(api_key_source)) if api_key_source else None) or profile.get("api_key")
 
     rpm_default = profile.get("requests_per_minute_default", 1)

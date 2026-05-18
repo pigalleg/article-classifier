@@ -255,6 +255,12 @@ def load_config(cfg_path: str):
     if isinstance(base_url, str):
         base_url = base_url.strip() or None
 
+    # Check if benchmark script passed a model-specific API key env var name
+    # (e.g., GOOGLE_API_KEY for Gemini instead of OPENAI_CLOUD_API_KEY for OpenAI)
+    override_api_key_env_var = os.getenv("OPENAI_API_KEY_ENV_VAR")
+    if override_api_key_env_var:
+        effective_api_key_env_var = override_api_key_env_var
+
     api_key = (os.getenv(str(effective_api_key_env_var)) if effective_api_key_env_var else None) or active_profile.get("api_key")
 
     rpm_default_from_reasoner = SETTINGS.get("runtime", {}).get("llm_reasoner", {}).get(
@@ -312,6 +318,7 @@ def init_models(
     embedder = EmbeddingModel(model_name=EMBED_MODEL)
     classifier = RAClassifier(embedder, ra_df, text_column="Question_Cleaned")
     llm_model, rpm, base_url, api_key = load_config(CFG_PATH)
+
     reasoner = LLMAffinityReasoner(
         model=llm_model,
         temperature=0.0,

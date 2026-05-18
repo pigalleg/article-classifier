@@ -96,19 +96,9 @@ models:
           api_key_env: OPENAI_CLOUD_API_KEY
           enabled: false
 
-        - name: qwen3.5:397b-cloud
-          backend: local
-          model: qwen3.5:397b-cloud
-          enabled: false
-
-        - name: llama4:16x17b # fast
-          backend: local
-          model: llama4:16x17b
-          enabled: false
-
-        - name: gemini-3-flash-preview
+        - name: gemini-3.1-flash-lite # 
           backend: cloud
-          model: gemini-3-flash-preview
+          model: gemini-3.1-flash-lite
           base_url: https://generativelanguage.googleapis.com/v1beta/openai
           api_key_env: GOOGLE_API_KEY
           enabled: false
@@ -116,11 +106,6 @@ models:
         - name: mistral-large-3:675b-cloud # fast
           backend: local
           model: mistral-large-3:675b-cloud
-          enabled: false
-
-        - name: deepseek-v3.2:cloud # fast
-          backend: local
-          model: deepseek-v3.2:cloud
           enabled: false
 
 
