@@ -482,7 +482,7 @@ def run_prp_adjudication(
     df = df[df["LLM_Affinity"].notna()].copy()
     df["Abstract_Index_Norm"] = df["Abstract_Index"].apply(_normalize_abstract_index)
     df["Target_ID_Norm"] = df["PRP_Name"].apply(_normalize_target_id)
-    df["affinity_level"] = df["LLM_Affinity"].apply(_affinity_level_fixed)
+    df["Affinity_Level"] = df["LLM_Affinity"].apply(_affinity_level_fixed)
     
     pair_stats = _compute_pair_stats(df, target_id_col="PRP_Name", target_text_col="PRP_Description")
     pair_stats["Target_ID_Norm"] = pair_stats["PRP_Name"].apply(_normalize_target_id)
