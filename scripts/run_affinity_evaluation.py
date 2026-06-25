@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Compute RA- and PRP-level affinity (0–100) between abstracts and RA questions / PRPs.
+Compute RA- and PRP-level affinity (0–120) between abstracts and RA questions / PRPs.
 
 Outputs:
 - data/results/ra_affinities.csv
@@ -344,7 +344,7 @@ def _extract_affinity_score_and_reason(value: Any) -> tuple[Optional[float], Opt
 
     try:
         score = float(score_raw)
-        score = float(np.round(max(0.0, min(100.0, score)), 4))
+        score = float(np.round(max(0.0, min(120.0, score)), 4))
     except Exception:
         return None, None
 

@@ -223,7 +223,7 @@ class LLMBase:
             if value is None:
                 raise TypeError("Missing score")
             score = float(value)
-            return max(0.0, min(100.0, score))
+            return max(0.0, min(120.0, score))
         except Exception:
             return None
 

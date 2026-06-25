@@ -1,4 +1,10 @@
 version: 1
+# Scoring bands (updated):
+# - 0 = no relevance (treat as not relevant)
+# - 1-40 = Low relevance
+# - 41-80 = Moderate relevance
+# - 81-120 = High relevance
+# Use these ranges when interpreting example scores and when sampling examples.
 examples:
   - id: id_20
     target_type: RA
@@ -6,13 +12,13 @@ examples:
       To integrate weak onshore grids, some grid forming (gfm) control schemes taking advantage of dc voltage synchronization have been proposed for modular multilevel converter-based high-voltage direct current (mmc-hvdc) systems. in these control schemes, the sub-module (sm) capacitor energy is only used for grid synchronization. since the sm capacitor is an energy storage device, it has the potential to actively regulate the stored energy. to fully exploit the energy management capability of mmc, a dual grid forming control scheme with energy regulation capability is presented in this paper. the proposed control scheme enables grid forming for both onshore and offshore mmc stations. meanwhile, the capacitor energy of mmcs can be flexibly regulated to provide frequency support for the onshore grid. to verify the effectiveness of the proposed control scheme, case studies are first carried out in a point-to-point offshore wind farms (owfs) integrated hvdc system. in addition, the frequency support performance is evaluated in a 3-area 4-machine grid integrated with two owfs-hvdc systems. finally, a single-terminal three-phase mmc prototype is developed to test the voltage decoupling and energy management capabilities of the proposed control strategy.
     targets:
       - target_id: "4"
-        score: 90
+        score: 108
         rationale: Directly develops inverter (MMC) control design for high-IBR grids.
       - target_id: "10"
-        score: 70
+        score: 84
         rationale: Examines grid-forming roles in HVDC-connected systems. Allthough, it does not directly determine appropiate mix, location or capabilities of grid-forming and grid-following inverters to mitigate stability problems.
       - target_id: "29"
-        score: 60
+        score: 72
         rationale: Maps MMC capabilities to frequency support service provision.
       - target_id: "14"
         score: 0
@@ -24,10 +30,10 @@ examples:
       This paper introduces a new fault location method for hybrid ac/dc complex transmission grids containing distributed energy resources (ders) and modular multilevel converter-high voltage direct current (hvdc) lines. digital fault recorders (dfr) in the dc grid cannot observe faults occurring in the ac network and vice-versa. the proposed algorithm accurately locates faults irrespective of their location using a subset of dfrs selected by a k-means clustering method. the algorithm is tested using an ac/dc complex transmission network formed by merging the modified ieee 39 bus transmission system and the cigre b4 dc grid test systems under several fault conditions using emtp-rv and matlab as simulation tools.
     targets:
       - target_id: "2"
-        score: 95
+        score: 114
         rationale: Directly proposes fault location method for protection in AC/DC grids.
       - target_id: "25"
-        score: 60
+        score: 72
         rationale: Uses measurements relevant to system monitoring metrics. It can be potentially useful for situational awareness, but the paper does not directly address this application or its requirements.
       - target_id: "19"
         score: 40
@@ -44,10 +50,10 @@ examples:
         score: 5
         rationale: Allthouh the paper related to system performance forecasting, it does not directly translates it into new technology solutions.
       - target_id: "23"
-        score: 41
+        score: 49
         rationale: Integrated data and analytics for operational insight. However, market data analytics might be less relevant for real-time situational awareness and decision-making in control rooms compared to physical system monitoring and forecasting.
       - target_id: "27"
-        score: 50
+        score: 60
         rationale: It uses one kind of probabilities forecasting for electricity prices which could be used into operational decision support. Howver, market data might be less relevant for real-time situational awareness and decision-making in control rooms compared to physical system monitoring and forecasting.
 # Added by populate_few_shot_ra_from_ministral_examples.py
 # Source: ministral_anchored_examples.csv row abstract_id=11 question_id=22
@@ -107,7 +113,7 @@ examples:
 
 # Added by populate_few_shot_ra_from_ministral_examples.py
 # Source: ministral_anchored_examples.csv row abstract_id=65 question_id=25
-# Ministral affinity level: Moderate (50.0)
+# Ministral affinity level: Moderate (60.0)
 # Sub-band: 41-55; anchor model: ministral-3-14b-cloud
   - id: id_65
     target_type: RA
@@ -115,13 +121,13 @@ examples:
       the integration of numerous energy storage systems (esss) improves the reliable and economic operation of microgrids but also enlarges the burden of control and communication systems. this article proposes a cooperative hierarchical control for isolated microgrids with esss, which fully frees from the centralized paradigm and is therefore superior in flexibility and scalability. firstly, the ess cooperative control based on the distributed frequency controller is introduced for the state of charge (soc) balance and the frequency regulation. then, the ess aggregation is considered. the aggregated ess model is established and the real-time model parameters are derived by proposed distributed state observers. finally, energy management is employed to allocate the output power between generators and the aggregated ess. a detailed theoretical analysis of the dynamic and steady-state performance of proposed controllers and observers is provided. simulations on the ieee 33-bus and the 69-bus system verify the effectiveness of proposed methods.
     targets:
       - target_id: "25"
-        score: 50
+        score: 60
         rationale: >-
           Distributed observers provide real-time monitoring but not explicitly for dynamic behavior metrics.
 
 # Added by populate_few_shot_ra_from_ministral_examples.py
 # Source: ministral_anchored_examples.csv row abstract_id=94 question_id=9
-# Ministral affinity level: Moderate (60.0)
+# Ministral affinity level: Moderate (72.0)
 # Sub-band: 56-70; anchor model: ministral-3-14b-cloud
   - id: id_94
     target_type: RA
@@ -129,13 +135,13 @@ examples:
       with the increasing deployment of distributed energy resources (ders), dispatching ders subject to operational constraints in distribution networks draws much attention. one challenge is the non-convexities in 1) system-wide ac power flow constraints and 2) the individual complementarity constraint of energy storage. to resolve this challenge, this paper studies an ac-feasible linear model in distribution networks with energy storage, including its formulation, analysis, and applications. first, an ac-feasible linear model is formulated as a set of linear constraints on controllable ders and uncontrollable power demand by 1) converting the non-convex system-wide constraints into linear constraints based on the brouwers fixed-point theorem and the second-order taylor expansion, and 2) replacing the non-convex individual complementarity constraint of energy storage with one properly designed linear constraint. furthermore, to analyze the power demand level at which the proposed linear model can provide a solution, this paper proposes an examination-based projection method under the monte carlo framework to handle projections of thousands of dimensions from linear constraints over time periods. finally, the potential applications of our ac-feasible linear model are discussed. numerical experiments are conducted in the ieee 33-bus and 136-bus test systems to demonstrate the effectiveness of the proposed methods.
     targets:
       - target_id: "9"
-        score: 60
+        score: 72
         rationale: >-
           Linear models provide planning tools but lack robust performance assessment.
 
 # Added by populate_few_shot_ra_from_ministral_examples.py
 # Source: ministral_anchored_examples.csv row abstract_id=53 question_id=25
-# Ministral affinity level: Moderate (65.0)
+# Ministral affinity level: Moderate (78.0)
 # Sub-band: 56-70; anchor model: ministral-3-14b-cloud
   - id: id_53
     target_type: RA
@@ -143,13 +149,13 @@ examples:
       this article presents a temperature-dependent three-phase power system state estimation method in which the bus voltage phasor and line conductor temperature are considered as state variables. the heat-balance conditions of the overhead lines and underground cables are integrated into the state estimation problem. to improve the robustness of the estimation results, the objective function of the constrained optimization problem is based on the schweppe-type huber generalized maximum-likelihood (shgm) estimator. a solution strategy based on an alternating optimization approach has been proposed. the method begins by estimating the voltage phasors of all buses while keeping the line conductor temperatures fixed to their present values. the optimization then uses the estimated voltage phasors and environmental information around all transmission lines to estimate the conductor temperature variables. these two optimization stages are alternatively repeated until the convergence conditions are satisfied. the effectiveness of the proposed state estimation has been demonstrated on ieee 30-bus and 118-bus systems modified as three-phase systems containing both overhead lines and buried underground cables. the results show that the proposed method can provide good estimated state accuracy and reduce the computational burden.
     targets:
       - target_id: "25"
-        score: 65
+        score: 78
         rationale: >-
           Monitors dynamic behavior via voltage phasors/power injections but no explicit metrics definitions.
 
 # Added by populate_few_shot_ra_from_ministral_examples.py
 # Source: ministral_anchored_examples.csv row abstract_id=9 question_id=25
-# Ministral affinity level: High (75.0)
+# Ministral affinity level: High (90.0)
 # Sub-band: 71-85; anchor model: ministral-3-14b-cloud
   - id: id_9
     target_type: RA
@@ -157,13 +163,13 @@ examples:
       electromagnetic transient (emt) simulation is critical and fundamental in the design and operation of the modular multilevel converter (mmc). this article proposes a highly efficient emt simulation model for mmc based on hybrid numerical integration. the topology and operational principle of mmc are elaborated first. based on this, an efficient simulation model for mmc is proposed. each arm of the mmc is reduced to a two-node norton equivalent circuit in the main network simulation. the computation of the capacitor dynamic equations is decoupled from that of the arm inductor dynamic equation. they are computed in a leapfrog manner. this makes the equivalent conductance of the mmc arm constant and greatly improves the simulation efficiency. moreover, the dynamic equations of the capacitors are also decoupled from each other. various operational conditions of the mmc are also considered, and accuracy and adaptability are thus ensured. extensive studies on power systems with different scales verify the accuracy and improved efficiency of the proposed emt simulation model for mmc.
     targets:
       - target_id: "25"
-        score: 75
+        score: 90
         rationale: >-
           Monitors system strength (frequency nadir/ROCOF) and dynamic behavior in real-time.
 
 # Added by populate_few_shot_ra_from_ministral_examples.py
 # Source: ministral_anchored_examples.csv row abstract_id=79 question_id=31
-# Ministral affinity level: High (90.0)
+# Ministral affinity level: High (108.0)
 # Sub-band: 86-100; anchor model: ministral-3-14b-cloud
   - id: id_79
     target_type: RA
@@ -171,6 +177,6 @@ examples:
       operating reserve, among the most important ancillary services, is a powerful prescription for mitigating increasing uncertainty of renewable generation. traditional reserve determination neglects uncertainty of renewable generation variations within the dispatch interval, which cannot guarantee sufficient reserve deliverability in real-time operation. this article proposes a probabilistic forecasting-based reserve determination method to efficiently deal with multi-temporal uncertainty of renewable energy in power systems. a novel probabilistic forecasting approach is proposed by integrating dirichlet process gaussian mixture model into bootstrap-based extreme learning machine. a unified uncertainty model is constructed for depicting both interval-averaged uncertainty and intra-interval uncertainty by combing the probabilistic forecasts and linearized it-process model. in current business practices of many independent system operators, the coordinated determination of two well-designed reserve products, including regulating reserve and ramp capability reserve, is formulated in a two-stage robust optimization framework. a bernstein polynomial-based model reformulation approach is then employed to handle the existing heterogeneity in the sub-models of each stage. consequently, the integrated reserve determination is embedded in a generic two-stage robust optimization problem, which can be efficiently solved by the adopted modified column-and-constraint generation method. finally, numerical simulations are implemented to validate the effectiveness and profitability of the proposed approach.
     targets:
       - target_id: "31"
-        score: 90
+        score: 108
         rationale: >-
           Explicitly evaluates feasibility, cost, and trade-offs of reserve provision (regulating + ramp capability) from IBRs/DERs via robust optimization.

@@ -205,11 +205,14 @@ def _affinity_level_fixed(score):
             x = float(score)
         except Exception:
             return pd.NA
-        if 0 <= x <= 40:
+        # Treat 0 as explicit 'no relevance' (map to NA for level labelling)
+        if x == 0:
+            return pd.NA
+        if 1 <= x <= 40:
             return 'Low'
-        if 40 < x <= 70:
+        if 40 < x <= 80:
             return 'Moderate'
-        if 70 < x <= 100:
+        if 80 < x <= 120:
             return 'High'
         return pd.NA
 
@@ -221,7 +224,12 @@ def _compute_pair_stats(merged_df: pd.DataFrame, target_id_col: str, target_text
         target_id_col,
         target_text_col,
     ]
-    # merged_df['affinity_level'] = merged_df['LLM_Affinity'].apply(affinity_level_fixed)
+    # Ensure an 'affinity_level' column exists (some callers use 'Affinity_Level')
+    if 'affinity_level' not in merged_df.columns:
+        if 'Affinity_Level' in merged_df.columns:
+            merged_df['affinity_level'] = merged_df['Affinity_Level']
+        else:
+            merged_df['affinity_level'] = merged_df['LLM_Affinity'].apply(affinity_level_fixed)
     grouped = (
         merged_df.groupby(base_cols, dropna=False, as_index=False)
         .agg(
@@ -482,7 +490,7 @@ def run_prp_adjudication(
     df = df[df["LLM_Affinity"].notna()].copy()
     df["Abstract_Index_Norm"] = df["Abstract_Index"].apply(_normalize_abstract_index)
     df["Target_ID_Norm"] = df["PRP_Name"].apply(_normalize_target_id)
-    df["Affinity_Level"] = df["LLM_Affinity"].apply(_affinity_level_fixed)
+    df["affinity_level"] = df["LLM_Affinity"].apply(_affinity_level_fixed)
     
     pair_stats = _compute_pair_stats(df, target_id_col="PRP_Name", target_text_col="PRP_Description")
     pair_stats["Target_ID_Norm"] = pair_stats["PRP_Name"].apply(_normalize_target_id)

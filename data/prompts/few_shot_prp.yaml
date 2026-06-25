@@ -1,12 +1,18 @@
 version: 1
+# Scoring bands (updated):
+# - 0 = no relevance (treat as not relevant)
+# - 1-40 = Low relevance
+# - 41-80 = Moderate relevance
+# - 81-120 = High relevance
+# Use these ranges when interpreting example scores and when sampling examples.
 examples:
   - id: id_20
     target_type: PRP
     abstract: >-
       To integrate weak onshore grids, some grid forming (GFM) control schemes taking advantage of DC voltage synchronization have been proposed for modular multilevel converter-based high-voltage direct current (MMC-HVDC) systems. In these control schemes, the sub-module (SM) capacitor energy is only used for grid synchronization. Since the SM capacitor is an energy storage device, it has the potential to actively regulate the stored energy. To fully exploit the energy management capability of MMC, a dual grid forming control scheme with energy regulation capability is presented in this paper. The proposed control scheme enables grid forming for both onshore and offshore MMC stations. Meanwhile, the capacitor energy of MMCs can be flexibly regulated to provide frequency support for the onshore grid. To verify the effectiveness of the proposed control scheme, case studies are first carried out in a point-to-point offshore wind farms (OWFs) integrated HVDC system. In addition, the frequency support performance is evaluated in a 3-area 4-machine grid integrated with two OWFs-HVDC systems. Finally, a single-terminal three-phase MMC prototype is developed to test the voltage decoupling and energy management capabilities of the proposed control strategy.
-    targets:
+      targets:
       - target_id: IBR
-        score: 95
+        score: 114
         rationale: Direct focus on grid-forming (GFM) control of MMC-HVDC systems, including advanced control design and energy management for converter-based systems-core IBR topic.
       # - target_id: System Services
       #   score: 55
