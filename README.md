@@ -143,6 +143,33 @@ Outputs are written under:
 - `data/results/affinity_benchmark/<run_id>/<model_slug>/...`
 - `data/results/affinity_benchmark/<run_id>/benchmark_manifest.csv`
 
+### Run Parallel Benchmark Launcher
+
+Use the launcher when benchmark models are split into independent execution groups.
+Models in the same `execution_group` run sequentially inside one benchmark
+process; different groups run in parallel.
+
+Usage guidelines:
+- Keep models that share one GPU or one constrained backend in the same group.
+- Use a logical group name such as `cloud` or `local-gpu`.
+- Prefer this launcher when you want parallelism without making the benchmark
+script itself more complex.
+
+Examples:
+
+```bash
+python scripts/run_affinity_benchmark_parallel.py --dry-run
+python scripts/run_affinity_benchmark_parallel.py --spawn-dry-run
+python scripts/run_affinity_benchmark_parallel.py --run-id 20260713_parallel
+```
+
+The launcher forwards all regular benchmark arguments to
+`run_affinity_benchmark.py`.
+
+Final outputs are flattened into `data/results/affinity_benchmark/<run_id>/`.
+Group-level metadata files are kept with group-specific prefixes so they do not
+overwrite each other.
+
 ### Run Affinity Evaluation
 
 Launch affinity evaluation (scored from 0 to 100) for each abstract against each Primary Research Programme (PRP).

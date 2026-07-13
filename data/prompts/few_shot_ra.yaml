@@ -1,4 +1,4 @@
-version: 1
+version: 2
 # Scoring bands (updated):
 # - 0 = no relevance (treat as not relevant)
 # - 1-40 = Low relevance
@@ -6,180 +6,6 @@ version: 1
 # - 81-120 = High relevance
 # Use these ranges when interpreting example scores and when sampling examples.
 examples:
-  - id: id_20
-    target_type: RA
-    abstract: >-
-      To integrate weak onshore grids, some grid forming (gfm) control schemes taking advantage of dc voltage synchronization have been proposed for modular multilevel converter-based high-voltage direct current (mmc-hvdc) systems. in these control schemes, the sub-module (sm) capacitor energy is only used for grid synchronization. since the sm capacitor is an energy storage device, it has the potential to actively regulate the stored energy. to fully exploit the energy management capability of mmc, a dual grid forming control scheme with energy regulation capability is presented in this paper. the proposed control scheme enables grid forming for both onshore and offshore mmc stations. meanwhile, the capacitor energy of mmcs can be flexibly regulated to provide frequency support for the onshore grid. to verify the effectiveness of the proposed control scheme, case studies are first carried out in a point-to-point offshore wind farms (owfs) integrated hvdc system. in addition, the frequency support performance is evaluated in a 3-area 4-machine grid integrated with two owfs-hvdc systems. finally, a single-terminal three-phase mmc prototype is developed to test the voltage decoupling and energy management capabilities of the proposed control strategy.
-    targets:
-      - target_id: "4"
-        score: 108
-        rationale: Directly develops inverter (MMC) control design for high-IBR grids.
-      - target_id: "10"
-        score: 84
-        rationale: Examines grid-forming roles in HVDC-connected systems. Allthough, it does not directly determine appropiate mix, location or capabilities of grid-forming and grid-following inverters to mitigate stability problems.
-      - target_id: "29"
-        score: 72
-        rationale: Maps MMC capabilities to frequency support service provision.
-      - target_id: "14"
-        score: 0
-        rationale: No communication requirements addressed.
-
-  - id: id_25
-    target_type: RA
-    abstract: >-
-      This paper introduces a new fault location method for hybrid ac/dc complex transmission grids containing distributed energy resources (ders) and modular multilevel converter-high voltage direct current (hvdc) lines. digital fault recorders (dfr) in the dc grid cannot observe faults occurring in the ac network and vice-versa. the proposed algorithm accurately locates faults irrespective of their location using a subset of dfrs selected by a k-means clustering method. the algorithm is tested using an ac/dc complex transmission network formed by merging the modified ieee 39 bus transmission system and the cigre b4 dc grid test systems under several fault conditions using emtp-rv and matlab as simulation tools.
-    targets:
-      - target_id: "2"
-        score: 114
-        rationale: Directly proposes fault location method for protection in AC/DC grids.
-      - target_id: "25"
-        score: 72
-        rationale: Uses measurements relevant to system monitoring metrics. It can be potentially useful for situational awareness, but the paper does not directly address this application or its requirements.
-      - target_id: "19"
-        score: 40
-        rationale: Fault location can aid operational decision-making, however, the abstract is not directly focused on decision-making tools or processes.
-  - id: id_34
-    target_type: RA
-    abstract: >-
-      The uncertainty of electricity prices poses a challenge to all market participants as their decisions highly depend on the accuracy of price forecasts. prediction intervals become an efficient method to quantify the uncertainties that reside in electricity price forecasts. in this paper, we propose a probabilistic electricity price forecast with optimal prediction interval method that considers both reliability and sharpness requirements. taking reliability and sharpness into account, we ensure the prediction interval has a narrow width without sacrificing reliability. in the proposed method, the quantile regression is utilized to estimate the upper and lower bounds of the prediction intervals to avoid electricity price distribution assumption. in addition, the extreme learning machine (elm) method is embedded in the forecast method to capture the nonlinear relationship within price data, and its tuning parameters are optimized using the augmented lagrangian relaxation method in this paper. the effectiveness of the proposed probabilistic forecast method is demonstrated using data from various electricity markets.
-    targets:
-      - target_id: "1"
-        score: 0
-        rationale: No relation to active power balance or frequency
-      - target_id: "30"
-        score: 5
-        rationale: Allthouh the paper related to system performance forecasting, it does not directly translates it into new technology solutions.
-      - target_id: "23"
-        score: 49
-        rationale: Integrated data and analytics for operational insight. However, market data analytics might be less relevant for real-time situational awareness and decision-making in control rooms compared to physical system monitoring and forecasting.
-      - target_id: "27"
-        score: 60
-        rationale: It uses one kind of probabilities forecasting for electricity prices which could be used into operational decision support. Howver, market data might be less relevant for real-time situational awareness and decision-making in control rooms compared to physical system monitoring and forecasting.
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=11 question_id=22
-# Ministral affinity level: Low (10.0)
-# Sub-band: 0-20; anchor model: ministral-3-14b-cloud
-  - id: id_11
-    target_type: RA
-    abstract: >-
-      the integration of modern power systems with information and communication technologies exposes them to various cyber threats. load frequency control (lfc) is a communication-based automation in power systems that regulates the frequency of the grid. its critical role makes it a highly attractive target for adversaries. this paper proposes a novel detection and isolation method of false data injection attacks (fdias) against lfc. the defense method employs sliding mode observation techniques to detect fdias against lfc in real-time and discover which parts of the control loop have been compromised. attacks are identified by comparing the generated residuals with a specific threshold that is designed in an adaptive manner. the proposed method is able to successfully distinguish the fdias from other system disturbances and is robust against uncertainties in power system parameters and noisy measurements. the effectiveness and scalability of the proposed defense method are confirmed on realistic power system models, considering nonlinearities, different topologies and diverse types of transmission links.
-    targets:
-      - target_id: "22"
-        score: 10
-        rationale: >-
-          No focus on digital architecture for control room modularity or automation.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=48 question_id=3
-# Ministral affinity level: Low (0.0)
-# Sub-band: 0-20; anchor model: ministral-3-14b-cloud
-  - id: id_48
-    target_type: RA
-    abstract: >-
-      in multi-infeed lcc-hvdc (midc) systems, voltage collapse becomes a concern as dc power increases, and its proximity to the stability boundary is challenging to define precisely. consequently, there is a growing focus on identifying the direction in which dc power destabilizes the midc systems most rapidly. to address the above issue, this letter introduces an iterative method for locating the closest saddle-node bifurcation (snb) point in the midc power space, utilizing the concept of the generalized short-circuit ratio (gscr) to represent grid strength. it is demonstrated that the right eigenvector corresponding to the gscr possesses the capability to construct the normal vector of the stability boundary in the power space. when the iterative process converges, this normal vector aligns with the worst-case instability direction. additionally, the method computes the euclidean distance from the current operating point to the closest snb point. case studies are provided to demonstrate the effectiveness of the proposed method.
-    targets:
-      - target_id: "3"
-        score: 0
-        rationale: >-
-          No focus on IBR control paradigm shifts or flexibility exploitation.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=9 question_id=46
-# Ministral affinity level: Low (35.0)
-# Sub-band: 21-40; anchor model: ministral-3-14b-cloud
-  - id: id_9
-    target_type: RA
-    abstract: >-
-      electromagnetic transient (emt) simulation is critical and fundamental in the design and operation of the modular multilevel converter (mmc). this article proposes a highly efficient emt simulation model for mmc based on hybrid numerical integration. the topology and operational principle of mmc are elaborated first. based on this, an efficient simulation model for mmc is proposed. each arm of the mmc is reduced to a two-node norton equivalent circuit in the main network simulation. the computation of the capacitor dynamic equations is decoupled from that of the arm inductor dynamic equation. they are computed in a leapfrog manner. this makes the equivalent conductance of the mmc arm constant and greatly improves the simulation efficiency. moreover, the dynamic equations of the capacitors are also decoupled from each other. various operational conditions of the mmc are also considered, and accuracy and adaptability are thus ensured. extensive studies on power systems with different scales verify the accuracy and improved efficiency of the proposed emt simulation model for mmc.
-    targets:
-      - target_id: "46"
-        score: 35
-        rationale: >-
-          Indirectly relevant (resilience via frequency security) but no explicit resilience planning.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=7 question_id=45
-# Ministral affinity level: Low (25.0)
-# Sub-band: 21-40; anchor model: ministral-3-14b-cloud
-  - id: id_7
-    target_type: RA
-    abstract: >-
-      in this paper, we present and study a robust unit commitment model and some variants that consider complex temperature and demand uncertainties. since there is a strong relationship among the efficiency of gas generators, demand, and temperature in practical systems, our robust models have both left- and right-hand-side (lhs and rhs, respectively) uncertainties. unlike many existing robust models with rhs uncertainty only, the introduction of lhs uncertainty imposes a huge challenge in computing robust solutions. for those complex formulations, we analyze their structures, derive important properties, and design exact and fast approximation solution strategies under the column-and-constraint generation framework. numerical experiments are conducted on typical ieee test systems, which showcase the great performance of our solution methods and demonstrate a clear impact of complex and correlated uncertainties in system operations.
-    targets:
-      - target_id: "45"
-        score: 25
-        rationale: >-
-          Uncertainty modeling is relevant but does not address electrification-specific load/resource forecasting.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=65 question_id=25
-# Ministral affinity level: Moderate (60.0)
-# Sub-band: 41-55; anchor model: ministral-3-14b-cloud
-  - id: id_65
-    target_type: RA
-    abstract: >-
-      the integration of numerous energy storage systems (esss) improves the reliable and economic operation of microgrids but also enlarges the burden of control and communication systems. this article proposes a cooperative hierarchical control for isolated microgrids with esss, which fully frees from the centralized paradigm and is therefore superior in flexibility and scalability. firstly, the ess cooperative control based on the distributed frequency controller is introduced for the state of charge (soc) balance and the frequency regulation. then, the ess aggregation is considered. the aggregated ess model is established and the real-time model parameters are derived by proposed distributed state observers. finally, energy management is employed to allocate the output power between generators and the aggregated ess. a detailed theoretical analysis of the dynamic and steady-state performance of proposed controllers and observers is provided. simulations on the ieee 33-bus and the 69-bus system verify the effectiveness of proposed methods.
-    targets:
-      - target_id: "25"
-        score: 60
-        rationale: >-
-          Distributed observers provide real-time monitoring but not explicitly for dynamic behavior metrics.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=94 question_id=9
-# Ministral affinity level: Moderate (72.0)
-# Sub-band: 56-70; anchor model: ministral-3-14b-cloud
-  - id: id_94
-    target_type: RA
-    abstract: >-
-      with the increasing deployment of distributed energy resources (ders), dispatching ders subject to operational constraints in distribution networks draws much attention. one challenge is the non-convexities in 1) system-wide ac power flow constraints and 2) the individual complementarity constraint of energy storage. to resolve this challenge, this paper studies an ac-feasible linear model in distribution networks with energy storage, including its formulation, analysis, and applications. first, an ac-feasible linear model is formulated as a set of linear constraints on controllable ders and uncontrollable power demand by 1) converting the non-convex system-wide constraints into linear constraints based on the brouwers fixed-point theorem and the second-order taylor expansion, and 2) replacing the non-convex individual complementarity constraint of energy storage with one properly designed linear constraint. furthermore, to analyze the power demand level at which the proposed linear model can provide a solution, this paper proposes an examination-based projection method under the monte carlo framework to handle projections of thousands of dimensions from linear constraints over time periods. finally, the potential applications of our ac-feasible linear model are discussed. numerical experiments are conducted in the ieee 33-bus and 136-bus test systems to demonstrate the effectiveness of the proposed methods.
-    targets:
-      - target_id: "9"
-        score: 72
-        rationale: >-
-          Linear models provide planning tools but lack robust performance assessment.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=53 question_id=25
-# Ministral affinity level: Moderate (78.0)
-# Sub-band: 56-70; anchor model: ministral-3-14b-cloud
-  - id: id_53
-    target_type: RA
-    abstract: >-
-      this article presents a temperature-dependent three-phase power system state estimation method in which the bus voltage phasor and line conductor temperature are considered as state variables. the heat-balance conditions of the overhead lines and underground cables are integrated into the state estimation problem. to improve the robustness of the estimation results, the objective function of the constrained optimization problem is based on the schweppe-type huber generalized maximum-likelihood (shgm) estimator. a solution strategy based on an alternating optimization approach has been proposed. the method begins by estimating the voltage phasors of all buses while keeping the line conductor temperatures fixed to their present values. the optimization then uses the estimated voltage phasors and environmental information around all transmission lines to estimate the conductor temperature variables. these two optimization stages are alternatively repeated until the convergence conditions are satisfied. the effectiveness of the proposed state estimation has been demonstrated on ieee 30-bus and 118-bus systems modified as three-phase systems containing both overhead lines and buried underground cables. the results show that the proposed method can provide good estimated state accuracy and reduce the computational burden.
-    targets:
-      - target_id: "25"
-        score: 78
-        rationale: >-
-          Monitors dynamic behavior via voltage phasors/power injections but no explicit metrics definitions.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=9 question_id=25
-# Ministral affinity level: High (90.0)
-# Sub-band: 71-85; anchor model: ministral-3-14b-cloud
-  - id: id_9
-    target_type: RA
-    abstract: >-
-      electromagnetic transient (emt) simulation is critical and fundamental in the design and operation of the modular multilevel converter (mmc). this article proposes a highly efficient emt simulation model for mmc based on hybrid numerical integration. the topology and operational principle of mmc are elaborated first. based on this, an efficient simulation model for mmc is proposed. each arm of the mmc is reduced to a two-node norton equivalent circuit in the main network simulation. the computation of the capacitor dynamic equations is decoupled from that of the arm inductor dynamic equation. they are computed in a leapfrog manner. this makes the equivalent conductance of the mmc arm constant and greatly improves the simulation efficiency. moreover, the dynamic equations of the capacitors are also decoupled from each other. various operational conditions of the mmc are also considered, and accuracy and adaptability are thus ensured. extensive studies on power systems with different scales verify the accuracy and improved efficiency of the proposed emt simulation model for mmc.
-    targets:
-      - target_id: "25"
-        score: 90
-        rationale: >-
-          Monitors system strength (frequency nadir/ROCOF) and dynamic behavior in real-time.
-
-# Added by populate_few_shot_ra_from_ministral_examples.py
-# Source: ministral_anchored_examples.csv row abstract_id=79 question_id=31
-# Ministral affinity level: High (108.0)
-# Sub-band: 86-100; anchor model: ministral-3-14b-cloud
-  - id: id_79
-    target_type: RA
-    abstract: >-
-      operating reserve, among the most important ancillary services, is a powerful prescription for mitigating increasing uncertainty of renewable generation. traditional reserve determination neglects uncertainty of renewable generation variations within the dispatch interval, which cannot guarantee sufficient reserve deliverability in real-time operation. this article proposes a probabilistic forecasting-based reserve determination method to efficiently deal with multi-temporal uncertainty of renewable energy in power systems. a novel probabilistic forecasting approach is proposed by integrating dirichlet process gaussian mixture model into bootstrap-based extreme learning machine. a unified uncertainty model is constructed for depicting both interval-averaged uncertainty and intra-interval uncertainty by combing the probabilistic forecasts and linearized it-process model. in current business practices of many independent system operators, the coordinated determination of two well-designed reserve products, including regulating reserve and ramp capability reserve, is formulated in a two-stage robust optimization framework. a bernstein polynomial-based model reformulation approach is then employed to handle the existing heterogeneity in the sub-models of each stage. consequently, the integrated reserve determination is embedded in a generic two-stage robust optimization problem, which can be efficiently solved by the adopted modified column-and-constraint generation method. finally, numerical simulations are implemented to validate the effectiveness and profitability of the proposed approach.
-    targets:
-      - target_id: "31"
-        score: 108
-        rationale: >-
-          Explicitly evaluates feasibility, cost, and trade-offs of reserve provision (regulating + ramp capability) from IBRs/DERs via robust optimization.
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=65 question_id=12
   - id: id_excel_abs65_ra12
@@ -191,10 +17,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          There are some potential links between the content of this research paper and the G-PST research question.  In particular Microgrids can be considered to be DERs to some extent and by controlling them you are potentially making them somewhat like an aggregated DER resource.  Some of the concepts like observability mentioned in the abstract of the paper are also potentially of interest.
+          There are some potential links between the content of this abstract and the research question.  In particular Microgrids can be considered to be DERs to some extent and by controlling them you are potentially making them somewhat like an aggregated DER resource.  Some of the concepts like observability mentioned in the abstract are also potentially of interest.
           
           Why this abstract falls below the next relevance level:
-          There is nothing direct within the abstract of the paper to link directly to aggregation and DERs.  The links are at best second hand.  The overall application of the paper is on a test system not a real system and there is mention of the word theoretical which is not a confidence building term with respect to a real application.
+          There is nothing direct within the abstract to link directly to aggregation and DERs.  The links are at best second hand.  The overall application of the abstract is on a test system not a real system and there is mention of the word theoretical which is not a confidence building term with respect to a real application.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=94 question_id=13
@@ -207,10 +33,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          There are some potential links between the content of this research paper and the G-PST research question.  In particular this is about DERs and accounting for the constraints that DERs have - this is linked with the primary objective of the G-PST research question which is quantification of services and constraints in the distribution system are a key to understand that. There is also potential applications is mentioned in the abstract of the paper which is at least accepting application may be important.
+          There are some potential links between the content of this abstract and the research question.  In particular this is about DERs and accounting for the constraints that DERs have - this is linked with the primary objective of the research question which is quantification of services and constraints in the distribution system are a key to understand that. There is also potential applications is mentioned in the abstract which is at least accepting application may be important.
           
           Why this abstract falls below the next relevance level:
-          The focus of the paper is on the distribution network and not the transmission network - in order for it to be scored higher it would need to focus on the transmission system.  The paper abstract is very focussed on the details of the formulation of an optimisation problem and some theory and not on the formulation of a real applied problem.  Test results are from a test system and not a real system with no obvious link to real industry stakeholders and/or real applications focussed work.
+          The focus of the abstract is on the distribution network and not the transmission network - in order for it to be scored higher it would need to focus on the transmission system.  The abstract is very focussed on the details of the formulation of an optimisation problem and some theory and not on the formulation of a real applied problem.  Test results are from a test system and not a real system with no obvious link to real industry stakeholders and/or real applications focussed work.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=194 question_id=35
@@ -223,10 +49,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          There are potential links between the paper abstract and the G-PST research question.  In particular the paper is addressing the British balancing market and the research question is asking can variable renewable energy provide services.  The link if it is there is on the methods side.
+          There are potential links between the abstract and the research question.  In particular the abstract is addressing the British balancing market and the research question is asking can variable renewable energy provide services.  The link if it is there is on the methods side.
           
           Why this abstract falls below the next relevance level:
-          The potential links identified between the paper abstract and the G-PST research question are possibly misleading so scoring any higher is simply not justified. may not actually have anything of value
+          The potential links identified between the abstract and the research question are possibly misleading so scoring any higher is simply not justified. may not actually have anything of value
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=44 question_id=3
@@ -239,10 +65,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          There is a potential link between the paper abstract which is focussed on controlling wind power plants to provide so called virtual frequency response and the G-PST research question which is focussed on the IBR control paradigm.  The assumption is that IBR control and WPP control share a lot in common.
+          There is a potential link between the abstract which is focussed on controlling wind power plants to provide so called virtual frequency response and the research question which is focussed on the IBR control paradigm.  The assumption is that IBR control and WPP control share a lot in common.
           
           Why this abstract falls below the next relevance level:
-          The link identified may not result in any synergy between the research being reported in the paper and the G-PST research question.  While IBRs and WPPs do share some things in common the link in this instance may not actually amount to anything of interest.  There is also no mention of any real application or involvement of system operators and industry and the results are on a test system not a real system.
+          The link identified may not result in any synergy between the research being reported in the abstract and the research question.  While IBRs and WPPs do share some things in common the link in this instance may not actually amount to anything of interest.  There is also no mention of any real application or involvement of system operators and industry and the results are on a test system not a real system.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=81 question_id=13
@@ -255,10 +81,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          DERs and one of the stakeholders the prosumer are identified in the abstract of the paper which has potential links to  quantification of services from DERs and sharing of these among other stakeholders.
+          DERs and one of the stakeholders the prosumer are identified in the abstract which has potential links to  quantification of services from DERs and sharing of these among other stakeholders.
           
           Why this abstract falls below the next relevance level:
-          The identified G-PST research question is in the services area yet the paper is tackling a planning problem so the links identified are at best tangential and at worst non existent.  The whole area of transactive energy and markets is out of scope for G-PST research question so that is a poor indicator of strong links.  The application domain and/or time frame of the paper and the G-PST research question may differ it looks like the paper is targeting planning while the G-PST research question is in the operations time frame.
+          The identified research question is in the services area yet the abstract is tackling a planning problem so the links identified are at best tangential and at worst non existent.  The whole area of transactive energy and markets is out of scope for research question so that is a poor indicator of strong links.  The application domain and/or time frame of the abstract and the research question may differ it looks like the abstract is targeting planning while the research question is in the operations time frame.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=241 question_id=27
@@ -271,7 +97,7 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          This is an incremental piece of research that does not directly address any of the G-PST research questions but does potentially have some links to some aspects of the research agenda.
+          This is an incremental piece of research that does not directly address any of the research questions but does potentially have some links to some aspects of the research agenda.
           
           Why this abstract falls below the next relevance level:
           There are no real practical applications.  It is mainly methodological and incremental and it is at best a small potential contribution to a very secondary aspect of the much more impactful research question.
@@ -287,10 +113,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          There may be some potential link between the research as described in the abstract and the G-PST research question.  This link is embodied in the focus on DERs in both the paper and the research question but the link is at best tenuous.
+          There may be some potential link between the research as described in the abstract and the research question.  This link is embodied in the focus on DERs in both the abstract and the research question but the link is at best tenuous.
           
           Why this abstract falls below the next relevance level:
-          An incremental piece of research is reported in the abstract of the paper and it is not directly related to the G-PST research question.  It is also fixated on methodology and only conducts some numerical experiments with no sign of a real application.
+          An incremental piece of research is reported in the abstract and it is not directly related to the research question.  It is also fixated on methodology and only conducts some numerical experiments with no sign of a real application.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=45 question_id=12
@@ -303,10 +129,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          This is a methods based paper that has some small potential link to the research agenda.  The research question is seeking methods to use when trying to account for DERs in planning and techno economic analysis and this paper may be useful when dealing with aggregation of the spatial /DER aspects.
+          This is a methods based abstract that has some small potential link to the research agenda.  The research question is seeking methods to use when trying to account for DERs in planning and techno economic analysis and this abstract may be useful when dealing with aggregation of the spatial /DER aspects.
           
           Why this abstract falls below the next relevance level:
-          This is a paper with a potential link to some aspects of the G-PST research agenda in the DER space.  It shares data and aggregation of variable renewable energy within the scope of the paper.  It is at best an incremental contribution and has only some small case studies that are not obviously directly related to the research agenda.
+          This is an abstract with a potential link to some aspects of the G-PST research agenda in the DER space.  It shares data and aggregation of variable renewable energy within the scope of the abstract.  It is at best an incremental contribution and has only some small case studies that are not obviously directly related to the research agenda.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=228 question_id=15
@@ -319,10 +145,10 @@ examples:
         score: 30
         rationale: >-
           Why this score was assigned:
-          This research paper addresses a distribution level challenge that can have some impact on the higher level transmission related problems that are the focus of the G-PST research agenda.  It does however have a good potential link to a real practical problem as indicated by the real distribution utility application.
+          This abstract addresses a distribution level challenge that can have some impact on the higher level transmission related problems that are the focus of the G-PST research agenda.  It does however have a good potential link to a real practical problem as indicated by the real distribution utility application.
           
           Why this abstract falls below the next relevance level:
-          The paper aspect does not address a G-PST research question in any direct way - it is focussed on the distribution system and not the transmission system therefore its link to the G-PST research question is minimal.  While there is an application in the paper it is not on the transmission system so that is a big weakness with respect to a strong link with the G-PST research question.
+          The abstract does not address a research question in any direct way - it is focussed on the distribution system and not the transmission system therefore its link to the research question is minimal.  While there is an application in the abstract it is not on the transmission system so that is a big weakness with respect to a strong link with the research question.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=134 question_id=21
@@ -335,10 +161,10 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          The research in this paper has a reasonably good link to the G-PST research question.  The paper describes a method to identify features that can be used to enhance the potential of harnessing flexibility resources.  There is reference to a real world test results which is encouraging.
+          The research in this abstract has a reasonably good link to the research question.  The abstract describes a method to identify features that can be used to enhance the potential of harnessing flexibility resources.  There is reference to a real world test results which is encouraging.
           
           Why this abstract falls below the next relevance level:
-          While the links are potentially strong between the paper and the research question they are not direct.  The paper addresses congestion but the research question is focussed on flexibility - congestion has an impact of flexibility but is not a one to one relationship.  No clear link or working relationship with a system operator is evident.
+          While the links are potentially strong between the abstract and the research question they are not direct.  The abstract addresses congestion but the research question is focussed on flexibility - congestion has an impact of flexibility but is not a one to one relationship.  No clear link or working relationship with a system operator is evident.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=231 question_id=39
@@ -351,10 +177,10 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          There is a potential relationship between the focus of the paper and the G-PST research agenda.  The paper focusses on the transmission distribution interface which is important in the DER part of the research agenda and the specific research question is looking into how reliability services in planning can account for deliverability.
+          There is a potential relationship between the focus of the abstract and the G-PST research agenda.  The abstract focusses on the transmission distribution interface which is important in the DER part of the research agenda and the specific research question is looking into how reliability services in planning can account for deliverability.
           
           Why this abstract falls below the next relevance level:
-          The research in the paper only relates to a small part of the research question and there are no signs of real practical application.  It is also not clear if the paper can provide real planning related benefits as it is really focussed on operations so more work would need to be done to bring this research in the paper closer to the practical G-PST research question.
+          The research in the abstract only relates to a small part of the research question and there are no signs of real practical application.  It is also not clear if the abstract can provide real planning related benefits as it is really focussed on operations so more work would need to be done to bring this research in the abstract closer to the practical research question.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=212 question_id=4
@@ -367,10 +193,10 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          Thematically the paper abstract aligns very well with the IBR research program of the G-PST research agenda and specifically the research reported in this paper addresses capability and control design.  It also deals with these issues across the range of IBRs i.e. GFM and GFL. The focus of the paper is in addressing real issues and is not methodologically dominated which is another good sign.
+          Thematically the abstract aligns very well with the IBR research program of the G-PST research agenda and specifically the research reported in this abstract addresses capability and control design.  It also deals with these issues across the range of IBRs i.e. GFM and GFL. The focus of the abstract is in addressing real issues and is not methodologically dominated which is another good sign.
           
           Why this abstract falls below the next relevance level:
-          The paper stops short of services and/or operational decision making which limits its potential linkage to the G-PST research question.  Although simulation results and experiments are noted it is not clear if they are at the right scale and applicability to be truly useful nor is it clear if a utility and/or a system operator are involved.
+          The abstract stops short of services and/or operational decision making which limits its potential linkage to the research question.  Although simulation results and experiments are noted it is not clear if they are at the right scale and applicability to be truly useful nor is it clear if a utility and/or a system operator are involved.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=44 question_id=4
@@ -383,10 +209,10 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          This research paper abstract describes research that directly addresses the capability of wind plant to provide frequency control services.  It also directly addresses the control problem and there are case studies on a test network.  These are all indicative of a solid link with the G-PST research question.
+          This abstract describes research that directly addresses the capability of wind plant to provide frequency control services.  It also directly addresses the control problem and there are case studies on a test network.  These are all indicative of a solid link with the research question.
           
           Why this abstract falls below the next relevance level:
-          The paper falls short of being strongly linked to the G-PST research question as it does not appear to be directed fully at the IBR aspects and it is also very focussed on the device rather than on the system itself.  Furthermore the case study is on a small typical test network and there does not appear to be any system operator involvement and/or any practical insights reported in the results.
+          The abstract falls short of being strongly linked to the research question as it does not appear to be directed fully at the IBR aspects and it is also very focussed on the device rather than on the system itself.  Furthermore the case study is on a small typical test network and there does not appear to be any system operator involvement and/or any practical insights reported in the results.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=174 question_id=42
@@ -399,7 +225,7 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          While there is good alignment from a methods perspective the practical application of the research may only be on the distribution network which may limit the research work being reported in the paper with respect to the G-PST transmission system perspective and scope.  There is also no sign of a real practical result and a path towards deployment of the research to system operators.
+          While there is good alignment from a methods perspective the practical application of the research may only be on the distribution network which may limit the research work being reported in the abstract with respect to the G-PST transmission system perspective and scope.  There is also no sign of a real practical result and a path towards deployment of the research to system operators.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=134 question_id=23
@@ -412,10 +238,26 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          The focus of the paper on feature selection and training using large data sets is very well aligned with the underlying research question being asked for in the G-PST research agenda research question.  Real world data along with synthetic data is also used in the research paper.
+          The focus of the abstract on feature selection and training using large data sets is very well aligned with the underlying research question being asked for in the G-PST research agenda research question.  Real world data along with synthetic data is also used in the abstract.
           
           Why this abstract falls below the next relevance level:
-          While at a basic level the research paper abstract describes research that looks at large complex data sets to help in power system operations the focus of the paper is only on one aspect, congestion and there is also no sign that multiple time scales are addressed.  Therefore the research paper is potentially well linked with a very specific aspect of the G-PST research question but not the holistic aspects.  No practical next steps are identified nor is there any sign of a real system operator and/or industry partner.
+          While at a basic level the abstract describes research that looks at large complex data sets to help in power system operations the focus of the abstract is only on one aspect, congestion and there is also no sign that multiple time scales are addressed.  Therefore the abstract is potentially well linked with a very specific aspect of the research question but not the holistic aspects.  No practical next steps are identified nor is there any sign of a real system operator and/or industry partner.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=65 question_id=18
+  - id: id_excel_abs65_ra18
+    target_type: RA
+    abstract: >-
+      the integration of numerous energy storage systems (esss) improves the reliable and economic operation of microgrids but also enlarges the burden of control and communication systems. this article proposes a cooperative hierarchical control for isolated microgrids with esss, which fully frees from the centralized paradigm and is therefore superior in flexibility and scalability. firstly, the ess cooperative control based on the distributed frequency controller is introduced for the state of charge (soc) balance and the frequency regulation. then, the ess aggregation is considered. the aggregated ess model is established and the real-time model parameters are derived by proposed distributed state observers. finally, energy management is employed to allocate the output power between generators and the aggregated ess. a detailed theoretical analysis of the dynamic and steady-state performance of proposed controllers and observers is provided. simulations on the ieee 33-bus and the 69-bus system verify the effectiveness of proposed methods.
+    targets:
+      - target_id: "18"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          There is a lot of synergy between the abstract and the research question specifically - aggregation, control communications and broadly speaking DERs.  Simulation results are also highlighted.  There is a real sense of the linkages here on a methodological basis between the research question and the abstract.
+          
+          Why this abstract falls below the next relevance level:
+          The mention of microgrids in the abstract is a big reason that this abstract does not link more strongly with the research question.  There are no indications that there are next steps to take this work further and apply with a system operator.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=212 question_id=9
@@ -428,10 +270,26 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          The scope of the paper abstract and the G-PST research question share a lot in common.  They are both driven by tools in the area of IBRs and their performance and capabilities.  The paper abstract focusses on all types of IBRs which is showing reach and potential applicability.  The paper mentions experimental cases which is indicative of applicability and it appears there are multiple cases which speaks to a potentially robust set of results.
+          The scope of the abstract and the research question share a lot in common.  They are both driven by tools in the area of IBRs and their performance and capabilities.  The abstract focusses on all types of IBRs which is showing reach and potential applicability.  The abstract mentions experimental cases which is indicative of applicability and it appears there are multiple cases which speaks to a potentially robust set of results.
           
           Why this abstract falls below the next relevance level:
-          The link at the tools level may break down when real case studies are tackled.  Additionally there is no mention of a real application and the paper is overly focussed on equations and not on real practical results.
+          The link at the tools level may break down when real case studies are tackled.  Additionally there is no mention of a real application and the abstract is overly focussed on equations and not on real practical results.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=281 question_id=36
+  - id: id_excel_abs281_ra36
+    target_type: RA
+    abstract: >-
+      energy storage (es) is a kind of promising but costly fast-frequency-response (ffr) resource in low-inertia power systems. this article addresses the minimum demand of a power system for energy capacities of es to providing sufficient frequency support, including the formulation, the optimal solution, and its practical implementation. first, the minimum energy control problem of ess for providing ffr with transient frequency constraints is formulated and then converted into an optimal frequency trajectory planning counterpart. this transformation makes the transient frequency constraint tractable and allows to identify the optimal frequency trajectory that minimizes energy demand for ess, which leads to an analytical expression of the system minimum demand for ess energy capacities to ensure frequency security. moreover, by unfolding the optimal frequency trajectory, the optimal control strategy of ess is derived explicitly for the first time. the theoretical result directs to a practical controller implementation, which is referred to as the decentralized optimal energy frequency control (doefc). finally, simulations on the modified ieee 39-bus system verify our results and demonstrate the superiority of the doefc in reducing the energy capacity demand of ess, defending successive disturbances, and hedging against parameter errors.
+    targets:
+      - target_id: "36"
+        score: 70
+        rationale: >-
+          Why this score was assigned:
+          Although the word services (and IBRs) do not appear in the abstract it is directed at fast frequency response (FFR) which is a service - hence it is linked with this research question.  There are strong indications that applications are on their radar which is a positive.
+          
+          Why this abstract falls below the next relevance level:
+          The abstract is a little too focussed on the fancy internal methods and not on the interesting results around fast frequency response as a service.  Also no system operator is involved and the lack of a holistic type of approach that accounts for the multiple services required and their overlap is a shortcoming.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=1 question_id=42
@@ -444,10 +302,10 @@ examples:
         score: 50
         rationale: >-
           Why this score was assigned:
-          The research reported in the abstract addresses the need for some sort of dimensionality reduction in order to deal with uncertainties which will arise in future power systems.  This is a theme of the G-PST research questions in the planning research program.  The paper proposes a method to do this reduction and this is aligned with the methodological scope of the research question.
+          The research reported in the abstract addresses the need for some sort of dimensionality reduction in order to deal with uncertainties which will arise in future power systems.  This is a theme of the research questions in the planning research program.  The abstract proposes a method to do this reduction and this is aligned with the methodological scope of the research question.
           
           Why this abstract falls below the next relevance level:
-          While there is a lot of alignment between the research question of the G-PST and the topic of the paper it is not clear if the research paper is developing the methods for application in planning which is the focus of the research question.  There is also no sign that the work has a pathway to application with a system operator.
+          While there is a lot of alignment between the research question of the G-PST and the topic of the abstract it is not clear if the abstract is developing the methods for application in planning which is the focus of the research question.  There is also no sign that the work has a pathway to application with a system operator.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=146 question_id=26
@@ -460,7 +318,7 @@ examples:
         score: 90
         rationale: >-
           Why this score was assigned:
-          Very strong link between the abstract of the paper with its focus on presenting graphically information that the user can use and interpret.  Practical application is a term used that is indicative that practical uses are being pursued.  The scale being quoted at over 2000 nodes is good to see and looks like scalability is very much in the minds of the researchers.  Case studies are done on several systems which is indicative of robustness of the results.
+          Very strong link between the abstract with its focus on presenting graphically information that the user can use and interpret.  Practical application is a term used that is indicative that practical uses are being pursued.  The scale being quoted at over 2000 nodes is good to see and looks like scalability is very much in the minds of the researchers.  Case studies are done on several systems which is indicative of robustness of the results.
           
           Why this abstract falls below the next relevance level:
-          The actual title of the paper is not a good fit to the G-PST research agenda question but the abstract text is a good fit - hence reluctance to increase the score.  There is no direct reference to control rooms which is a little concerning and there are no system operator stakeholders involved.  There is also more an emphasis on the algorithm side than on the user side and there is no mention of real time.
+          The actual title of the abstract is not a good fit to the research question but the abstract text is a good fit - hence reluctance to increase the score.  There is no direct reference to control rooms which is a little concerning and there are no system operator stakeholders involved.  There is also more an emphasis on the algorithm side than on the user side and there is no mention of real time.

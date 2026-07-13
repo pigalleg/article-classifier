@@ -122,20 +122,29 @@ def _resolve_profiles(settings: dict[str, Any]) -> tuple[list[ModelProfile], str
     cloud_profile = llm_cfg.get("cloud", {})
 
     configured: list[dict[str, Any]] = bench_cfg.get("models", []) or []
+    configured_by_key: dict[str, dict[str, Any]] = {}
+    for item in configured:
+        name_key = str(item.get("name") or "").strip()
+        model_key = str(item.get("model") or "").strip()
+        if name_key:
+            configured_by_key[name_key] = item
+        if model_key:
+            configured_by_key[model_key] = item
 
     # Optional override list: comma-separated model IDs.
     models_override_raw = os.getenv(models_env_var)
     if models_override_raw:
         override_models = [m.strip() for m in models_override_raw.split(",") if m.strip()]
-        configured = [
-            {
-                "name": m,
-                "backend": forced_backend or llm_cfg.get("default_backend") or "local",
-                "model": m,
-                "enabled": True,
-            }
-            for m in override_models
-        ]
+        overridden: list[dict[str, Any]] = []
+        for model_name in override_models:
+            base_item = dict(configured_by_key.get(model_name, {}))
+            base_item.setdefault("name", model_name)
+            base_item.setdefault("model", model_name)
+            base_item["enabled"] = True
+            if forced_backend:
+                base_item["backend"] = forced_backend
+            overridden.append(base_item)
+        configured = overridden
 
     profiles: list[ModelProfile] = []
     for item in configured:

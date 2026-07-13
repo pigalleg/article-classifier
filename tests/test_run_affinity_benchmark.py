@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from scripts.run_affinity_benchmark import ModelProfile, _build_env
+from scripts.run_affinity_benchmark import _resolve_profiles
 
 
 def test_build_env_exports_model_specific_api_key_env_and_generic_key():
@@ -125,3 +126,48 @@ def test_build_env_swaps_between_local_and_multiple_cloud_models():
     assert env1["OPENAI_API_KEY"] == "ollama"
     assert env2["OPENAI_API_KEY"] == "sk-proj-openai-key-123"
     assert env3["OPENAI_API_KEY"] == "gsk-google-key-789"
+
+
+def test_resolve_profiles_preserves_per_model_metadata_when_overridden(monkeypatch):
+    """Test that launcher overrides keep the Google model's base URL and API key env."""
+
+    settings = {
+        "models": {
+            "llm": {
+                "default_backend": "local",
+                "benchmark": {
+                    "models": [
+                        {
+                            "name": "gpt-5.4-mini",
+                            "backend": "cloud",
+                            "model": "gpt-5.4-mini",
+                            "api_key_env": "OPENAI_CLOUD_API_KEY",
+                            "enabled": True,
+                        },
+                        {
+                            "name": "gemini-3.1-flash-lite",
+                            "backend": "cloud",
+                            "model": "google/gemini-3.1-flash-lite",
+                            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+                            "api_key_env": "GOOGLE_API_KEY",
+                            "enabled": True,
+                        },
+                    ]
+                },
+            }
+        }
+    }
+
+    monkeypatch.setenv("AFFINITY_BENCHMARK_MODELS", "gemini-3.1-flash-lite")
+    monkeypatch.setenv("AFFINITY_BENCHMARK_BACKEND", "cloud")
+
+    profiles, forced_backend = _resolve_profiles(settings)
+
+    assert forced_backend == "cloud"
+    assert len(profiles) == 1
+    profile = profiles[0]
+    assert profile.name == "gemini-3.1-flash-lite"
+    assert profile.model == "google/gemini-3.1-flash-lite"
+    assert profile.backend == "cloud"
+    assert profile.base_url == "https://generativelanguage.googleapis.com/v1beta/openai"
+    assert profile.api_key_env == "GOOGLE_API_KEY"

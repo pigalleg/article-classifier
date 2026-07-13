@@ -47,7 +47,7 @@ models:
   llm:
     # Global backend selector. Supported values: local, cloud
     # Can be overridden with env var LLM_BACKEND.
-    default_backend: local
+    default_backend: cloud
 
     # Environment variable names used by runtime resolvers.
     backend_env_var: LLM_BACKEND
@@ -65,11 +65,11 @@ models:
 
     # Cloud backend defaults.
     cloud:
-      model: gpt-5.4-mini #gpt-5.4
+      model: gpt-5.4 #gpt-5.4-mini #gpt-5.4
       # Keep null to use SDK/provider default base URL.
       base_url:
       # Name of env var that holds the cloud key.
-      api_key_env: #OPENAI_CLOUD_API_KEY
+      api_key_env: OPENAI_CLOUD_API_KEY
       requests_per_minute_default: 500
 
     # Models used by affinity multi-model benchmarking.
@@ -82,30 +82,43 @@ models:
         - name: gemma4:31b-cloud
           backend: local
           model: gemma4:31b-cloud
-          enabled: false
+          execution_group: local_gpu
+          enabled: true
 
         - name: ministral-3:14b-cloud
           backend: local
           model: ministral-3:14b-cloud
-          enabled: false
+          execution_group: local_gpu
+          enabled: true
 
         - name: gpt-5.4-mini
           backend: cloud
           model: gpt-5.4-mini
           base_url:
           api_key_env: OPENAI_CLOUD_API_KEY
-          enabled: false
+          execution_group: cloud_openai
+          enabled: true
+
+        - name: gpt-5.4
+          backend: cloud
+          model: gpt-5.4
+          base_url:
+          api_key_env: OPENAI_CLOUD_API_KEY
+          execution_group: cloud_openai
+          enabled: true
 
         - name: gemini-3.1-flash-lite # 
           backend: cloud
           model: gemini-3.1-flash-lite
           base_url: https://generativelanguage.googleapis.com/v1beta/openai
           api_key_env: GOOGLE_API_KEY
-          enabled: false
+          execution_group: cloud_google
+          enabled: true
 
         - name: mistral-large-3:675b-cloud # fast
           backend: local
           model: mistral-large-3:675b-cloud
+          execution_group: local_gpu
           enabled: false
 
 
