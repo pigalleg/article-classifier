@@ -222,6 +222,48 @@ Notes:
   - `AFFINITY_FEW_SHOT_PRP_FILE`
   - `AFFINITY_FEW_SHOT_MAX_EXAMPLES`
 
+### Build RA Few-Shot Examples From Excel Evaluations
+
+Use the utility script below to append RA examples from an evaluator Excel file
+to `data/prompts/few_shot_ra.yaml`.
+
+Dry run (preview only):
+
+```bash
+python scripts/util/populate_few_shot_ra_from_excel_evaluations.py --dry-run
+```
+
+Append mode (writes to YAML):
+
+```bash
+python scripts/util/populate_few_shot_ra_from_excel_evaluations.py
+```
+
+With explicit input/output arguments:
+
+```bash
+python scripts/util/populate_few_shot_ra_from_excel_evaluations.py \
+  --input-xlsx "<path-to-xlsx>" \
+  --sheet-name "Rationale_clean" \
+  --output-yaml data/prompts/few_shot_ra.yaml
+```
+
+Expected Excel columns in sheet `Rationale_clean`:
+- `Abstract_Index`
+- `Abstract`
+- `RA2025_ID`
+- `Evaluator_Score`
+- `Why this score was assigned to the abstract?`
+- `Why does this abstract fall below the next relevance level?`
+
+Score mapping used:
+- `0 -> 10`
+- `1 -> 30`
+- `2 -> 50`
+- `3 -> 70`
+- `4 -> 90`
+- `5 -> 110`
+
 ## Script Outputs
 
 <!-- - `prepare_data.py` -> `data/processed/abstracts_cleaned.csv`, `data/processed/ra_questions_cleaned.csv`, `data/processed/primary_programmes.csv` -->

@@ -180,3 +180,287 @@ examples:
         score: 108
         rationale: >-
           Explicitly evaluates feasibility, cost, and trade-offs of reserve provision (regulating + ramp capability) from IBRs/DERs via robust optimization.
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=65 question_id=12
+  - id: id_excel_abs65_ra12
+    target_type: RA
+    abstract: >-
+      the integration of numerous energy storage systems (esss) improves the reliable and economic operation of microgrids but also enlarges the burden of control and communication systems. this article proposes a cooperative hierarchical control for isolated microgrids with esss, which fully frees from the centralized paradigm and is therefore superior in flexibility and scalability. firstly, the ess cooperative control based on the distributed frequency controller is introduced for the state of charge (soc) balance and the frequency regulation. then, the ess aggregation is considered. the aggregated ess model is established and the real-time model parameters are derived by proposed distributed state observers. finally, energy management is employed to allocate the output power between generators and the aggregated ess. a detailed theoretical analysis of the dynamic and steady-state performance of proposed controllers and observers is provided. simulations on the ieee 33-bus and the 69-bus system verify the effectiveness of proposed methods.
+    targets:
+      - target_id: "12"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          There are some potential links between the content of this research paper and the G-PST research question.  In particular Microgrids can be considered to be DERs to some extent and by controlling them you are potentially making them somewhat like an aggregated DER resource.  Some of the concepts like observability mentioned in the abstract of the paper are also potentially of interest.
+          
+          Why this abstract falls below the next relevance level:
+          There is nothing direct within the abstract of the paper to link directly to aggregation and DERs.  The links are at best second hand.  The overall application of the paper is on a test system not a real system and there is mention of the word theoretical which is not a confidence building term with respect to a real application.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=94 question_id=13
+  - id: id_excel_abs94_ra13
+    target_type: RA
+    abstract: >-
+      with the increasing deployment of distributed energy resources (ders), dispatching ders subject to operational constraints in distribution networks draws much attention. one challenge is the non-convexities in 1) system-wide ac power flow constraints and 2) the individual complementarity constraint of energy storage. to resolve this challenge, this paper studies an ac-feasible linear model in distribution networks with energy storage, including its formulation, analysis, and applications. first, an ac-feasible linear model is formulated as a set of linear constraints on controllable ders and uncontrollable power demand by 1) converting the non-convex system-wide constraints into linear constraints based on the brouwers fixed-point theorem and the second-order taylor expansion, and 2) replacing the non-convex individual complementarity constraint of energy storage with one properly designed linear constraint. furthermore, to analyze the power demand level at which the proposed linear model can provide a solution, this paper proposes an examination-based projection method under the monte carlo framework to handle projections of thousands of dimensions from linear constraints over time periods. finally, the potential applications of our ac-feasible linear model are discussed. numerical experiments are conducted in the ieee 33-bus and 136-bus test systems to demonstrate the effectiveness of the proposed methods.
+    targets:
+      - target_id: "13"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          There are some potential links between the content of this research paper and the G-PST research question.  In particular this is about DERs and accounting for the constraints that DERs have - this is linked with the primary objective of the G-PST research question which is quantification of services and constraints in the distribution system are a key to understand that. There is also potential applications is mentioned in the abstract of the paper which is at least accepting application may be important.
+          
+          Why this abstract falls below the next relevance level:
+          The focus of the paper is on the distribution network and not the transmission network - in order for it to be scored higher it would need to focus on the transmission system.  The paper abstract is very focussed on the details of the formulation of an optimisation problem and some theory and not on the formulation of a real applied problem.  Test results are from a test system and not a real system with no obvious link to real industry stakeholders and/or real applications focussed work.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=194 question_id=35
+  - id: id_excel_abs194_ra35
+    target_type: RA
+    abstract: >-
+      proactive participation of uncertain renewable generation in the day-ahead (da) wholesale market effectively reduces the system marginal price and carbon emissions, whilst significantly increasing the volumes of real-time balancing mechanism prices to ensure system security and stability. to solve the conflicting interests over the two timescales, this article: 1) proposes a novel hierarchical optimization model to align with the actual operation paradigms of the hierarchical market, whereby the capacity allocation matrix is adopted to coordinate the da and balancing markets; 2) mathematically formulates and quantitatively analyses the long-term driving factors of balancing actions, enabling system operators (sos) to design efficient and well-functioning market structures to meet economic and environmental targets; 3) empowers renewable generating units and flexible loads to participate in the balancing market (bm) as active actors and enforces the non-discriminatory provision of balancing services. the performance of the proposed model is validated on a modified ieee 39-bus power system and a reduced gb network. results reveal that with effective resource allocation in different timescales of the hierarchical market, the drop speed of balancing costs soars while the intermittent generation climbs. the proposed methodology enables sos to make the most of all resources available in the market and balance the system flexibly and economically. it thus safeguards the climate mitigation pathways against the risks of substantially higher balancing costs.
+    targets:
+      - target_id: "35"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          There are potential links between the paper abstract and the G-PST research question.  In particular the paper is addressing the British balancing market and the research question is asking can variable renewable energy provide services.  The link if it is there is on the methods side.
+          
+          Why this abstract falls below the next relevance level:
+          The potential links identified between the paper abstract and the G-PST research question are possibly misleading so scoring any higher is simply not justified. may not actually have anything of value
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=44 question_id=3
+  - id: id_excel_abs44_ra3
+    target_type: RA
+    abstract: >-
+      when renewable energy-based generations are increasing, they are subject to cause frequency stability problems in a power system. to solve this problem, various virtual inertial control methods (vicms) have been recently developed. however, they all have dealt not with the steady-state frequency stability, but only with dynamic frequency stability issues. in particular, the wind power plants (wpps) operated by these vicms can only provide a similar inertial response (ir) to that by conventional synchronous generators without providing the primary frequency response (pfr). this results in lowering the settling frequency (sf) below the maximum steady-state frequency deviation (mssd) band. this paper proposes the new hierarchical control strategy for the wpps, which are operated by three virtual frequency response control methods (vfrcms) to provide both ir and pfr. firstly, the vfrcm-1 provides virtual ir. next, the vfrcm-2 increases the output power from the wpps to prevent the frequency drop, which can occur after the frequency nadir is arrested. finally, the vfrcm-3 makes the wpps possible to raise the sf above the mssd band by providing the virtual pfr. the effectiveness of proposed hierarchical control strategy is verified by several case studies on the ieee 39-bus test system with the high penetration of renewables.
+    targets:
+      - target_id: "3"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          There is a potential link between the paper abstract which is focussed on controlling wind power plants to provide so called virtual frequency response and the G-PST research question which is focussed on the IBR control paradigm.  The assumption is that IBR control and WPP control share a lot in common.
+          
+          Why this abstract falls below the next relevance level:
+          The link identified may not result in any synergy between the research being reported in the paper and the G-PST research question.  While IBRs and WPPs do share some things in common the link in this instance may not actually amount to anything of interest.  There is also no mention of any real application or involvement of system operators and industry and the results are on a test system not a real system.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=81 question_id=13
+  - id: id_excel_abs81_ra13
+    target_type: RA
+    abstract: >-
+      the deployment of prosumers with distributed energy resources (ders) has facilitated the prosumer-centric transactive market, giving rise to the consequent necessity for the coordination between prosumers and the distribution networks. this paper proposes an incentive-based expansion planning method considering virtual peer-to-peer (p2p) transaction among prosumers, which is characterized as a tri-level planning-operation-transaction framework. each prosumer optimizes its internal response of ders and external p2p transaction jointly, formulating virtual p2p transaction. under such a paradigm, the distribution company (disco) identifies the optimal expansion planning in the network assets, while the independent distribution system operator (idso) is responsible for the optimal operation of the expanded distribution networks. to derive appropriate incentives for each prosumer, the disco and idso allocate long-term investment network charges and short-term operation network charges on prosumers, along with the designed financial transmission rights coupling multiple time scales. through such incentives, self-profit driven virtual transactions can relieve operation problems and postpone expansion planning, acting as a short-term alternative. moreover, a risk-based approach is proposed for prosumer to flexibly change strategy according to different risk preference. finally, results from the case study demonstrate the superiority and effectiveness of the proposed method in the collaborative application of virtual transaction in the expansion planning.
+    targets:
+      - target_id: "13"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          DERs and one of the stakeholders the prosumer are identified in the abstract of the paper which has potential links to  quantification of services from DERs and sharing of these among other stakeholders.
+          
+          Why this abstract falls below the next relevance level:
+          The identified G-PST research question is in the services area yet the paper is tackling a planning problem so the links identified are at best tangential and at worst non existent.  The whole area of transactive energy and markets is out of scope for G-PST research question so that is a poor indicator of strong links.  The application domain and/or time frame of the paper and the G-PST research question may differ it looks like the paper is targeting planning while the G-PST research question is in the operations time frame.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=241 question_id=27
+  - id: id_excel_abs241_ra27
+    target_type: RA
+    abstract: >-
+      accurate wind power forecast (wpf) is critical for ensuring secure and economic operation of a power system, and combination forecasting approaches for wpf have been proved effective on attaining accurate forecasting results. however, the weights in a combination forecasting model are usually predetermined based on the global performance on the training set, limiting the adaptability of the model to different scenarios. to further enhance the accuracy and effectiveness of the combination forecasting approaches, this article proposes an adaptive weighted combination forecasting approach based on the deep deterministic policy gradient (ddpg) so as to consider the local behavior accompanied by the change of external environment. three sub-models are first selected considering the equal-likelihood and dispersion indices to construct a combination model. then, the ddpg agent is trained to act as a weight generator by interacting with the environment and to maximize the reward. thus, the ddpg agent can perceive the environmental changes online and dynamically weight the sub-models to attain accurate forecasting results. case studies demonstrate that the forecasting accuracy of the proposed approach is better than that of all sub-models and several benchmark combination forecasting approaches.
+    targets:
+      - target_id: "27"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          This is an incremental piece of research that does not directly address any of the G-PST research questions but does potentially have some links to some aspects of the research agenda.
+          
+          Why this abstract falls below the next relevance level:
+          There are no real practical applications.  It is mainly methodological and incremental and it is at best a small potential contribution to a very secondary aspect of the much more impactful research question.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=94 question_id=12
+  - id: id_excel_abs94_ra12
+    target_type: RA
+    abstract: >-
+      with the increasing deployment of distributed energy resources (ders), dispatching ders subject to operational constraints in distribution networks draws much attention. one challenge is the non-convexities in 1) system-wide ac power flow constraints and 2) the individual complementarity constraint of energy storage. to resolve this challenge, this paper studies an ac-feasible linear model in distribution networks with energy storage, including its formulation, analysis, and applications. first, an ac-feasible linear model is formulated as a set of linear constraints on controllable ders and uncontrollable power demand by 1) converting the non-convex system-wide constraints into linear constraints based on the brouwers fixed-point theorem and the second-order taylor expansion, and 2) replacing the non-convex individual complementarity constraint of energy storage with one properly designed linear constraint. furthermore, to analyze the power demand level at which the proposed linear model can provide a solution, this paper proposes an examination-based projection method under the monte carlo framework to handle projections of thousands of dimensions from linear constraints over time periods. finally, the potential applications of our ac-feasible linear model are discussed. numerical experiments are conducted in the ieee 33-bus and 136-bus test systems to demonstrate the effectiveness of the proposed methods.
+    targets:
+      - target_id: "12"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          There may be some potential link between the research as described in the abstract and the G-PST research question.  This link is embodied in the focus on DERs in both the paper and the research question but the link is at best tenuous.
+          
+          Why this abstract falls below the next relevance level:
+          An incremental piece of research is reported in the abstract of the paper and it is not directly related to the G-PST research question.  It is also fixated on methodology and only conducts some numerical experiments with no sign of a real application.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=45 question_id=12
+  - id: id_excel_abs45_ra12
+    target_type: RA
+    abstract: >-
+      this paper proposes a new time aggregation method that can properly reflect the spatial aspect of the data sources alongside their temporal behaviour when multiple variable energy resources are involved. each representative period, constructed by the proposed method, can include more than one representative day, which, in itself, represents a group of data sources that are highly associated with each other. it also preserves the spatial relationship among data sources as a whole by constructing a hybrid centroid. two case studies, each with different data sources and networks, with and without energy storage, are considered for this study. in the second case, we add an storage to reflect the significance of preserving shape of patterns in the representative periods. the duration curves of wind farms and solar farms generations, electricity demand, and net demand are used as data-based evaluation indices to compare the performance of the proposed method against other approaches. in addition, an ieee 24-bus and a 6-bus test system are considered for the case studies. two model-based evaluation indices are used to measure the performance of the clustering methods, including the power flow of all the lines in the system and the annual operation cost of the system. in addition, the performance of the proposed method in the presence of energy storage is evaluated and compared with existing methods.
+    targets:
+      - target_id: "12"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          This is a methods based paper that has some small potential link to the research agenda.  The research question is seeking methods to use when trying to account for DERs in planning and techno economic analysis and this paper may be useful when dealing with aggregation of the spatial /DER aspects.
+          
+          Why this abstract falls below the next relevance level:
+          This is a paper with a potential link to some aspects of the G-PST research agenda in the DER space.  It shares data and aggregation of variable renewable energy within the scope of the paper.  It is at best an incremental contribution and has only some small case studies that are not obviously directly related to the research agenda.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=228 question_id=15
+  - id: id_excel_abs228_ra15
+    target_type: RA
+    abstract: >-
+      deep penetration of distributed energy resources (ders) and electric vehicles (evs) introduce benefits but may cause the overloading of service transformers in distribution networks. such situations require real-time transformer loading information, where an accurate mapping between smart meters and distribution transformers is a prerequisite, e.g., summing the downstream smart meter consumptions. due to arbitrary curvature in streets, we propose to employ a density-based clustering based on voltage magnitudes (continuous) and street name (categorical) information. however, a density-based approach may only be able to localize a meter to a street segment. hence, we use a second-stage spectral clustering with distance along the street (das), a novel feature, to obtain meter clusters, each with a common parent transformer. for mapping transformers to meter clusters, we use the nearest cluster center approach based on the location since voltage measurements may not be available at transformers. moreover, we provide a theoretical guarantee for such an approach. finally, we illustrate the usefulness of the proposed algorithm on long streets, which is a challenging scenario due to many possible incorrect combinations of meter-transformer mapping. the proposed algorithm has been tested on modified ieee 8-, 69-, 123-bus test systems and real distribution feeders from a utility in the southwestern united states, demonstrating outstanding performance.
+    targets:
+      - target_id: "15"
+        score: 30
+        rationale: >-
+          Why this score was assigned:
+          This research paper addresses a distribution level challenge that can have some impact on the higher level transmission related problems that are the focus of the G-PST research agenda.  It does however have a good potential link to a real practical problem as indicated by the real distribution utility application.
+          
+          Why this abstract falls below the next relevance level:
+          The paper aspect does not address a G-PST research question in any direct way - it is focussed on the distribution system and not the transmission system therefore its link to the G-PST research question is minimal.  While there is an application in the paper it is not on the transmission system so that is a big weakness with respect to a strong link with the G-PST research question.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=134 question_id=21
+  - id: id_excel_abs134_ra21
+    target_type: RA
+    abstract: >-
+      power system congestion event prognosis (cep) based on multivariate time series (mts) learning is an effective way to improve the warning abilities against risky situations. however, it is still challenging to decide which measurement sequences of system variables should be selected to train mts learning-based ceps models, especially when facing high-dimensional candidate features from power systems. focusing on this issue, this paper proposes a novel high-dimensional feature selection (fs) method to identify and select variables that contain beneficial data patterns for the prognosis of network congestion events. a wrapper framework embedded with multiple mts learning models is first built to treat fs as a combinatorial optimization task and receive mts as inputs directly without sequence compressions. then, to improve the combinatorial optimization efficiency and fs results in the high-dimensional case, a hybrid structure called enhanced evolutionary computation (eec) is developed by combining with information theory-based feature priority scores, which play the role of semi-guidance in the iterative search. test results on both the real-world and synthetic datasets validate the effectiveness of the developed eec structure and show that the selected features by the proposed fs method are more beneficial in identifying the early patterns of network congestion events, thus contributing to efficient and accurate cep for power systems.
+    targets:
+      - target_id: "21"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          The research in this paper has a reasonably good link to the G-PST research question.  The paper describes a method to identify features that can be used to enhance the potential of harnessing flexibility resources.  There is reference to a real world test results which is encouraging.
+          
+          Why this abstract falls below the next relevance level:
+          While the links are potentially strong between the paper and the research question they are not direct.  The paper addresses congestion but the research question is focussed on flexibility - congestion has an impact of flexibility but is not a one to one relationship.  No clear link or working relationship with a system operator is evident.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=231 question_id=39
+  - id: id_excel_abs231_ra39
+    target_type: RA
+    abstract: >-
+      coordinated dispatch of integrated transmission-distribution systems (itds) continues to be a hotspot due to the growing demand-side flexibility. decentralized optimization, which has been widely studied, does not conform to the current hierarchical framework of power system operation. this paper proposes a centralized distributionally robust chance-constrained dispatch model for itds. the transmission system operator considers the flexible ranges of large-scale distributed energy resources (ders) in distribution systems via flexibility aggregation. a price-guided flexibility model is proposed to describe the temporally coupled aggregate flexibility of distribution systems. it is constructed by filtering those constraints with a high probability of activeness in the itd dispatch problem, reducing the number of constraints from quadratic to linear with the number of divided time slots while maintaining high accuracy. furthermore, we use the data-driven distributionally robust chance constraint to deal with the uncertainty from both renewable generations and the flexibility of ders. numerical simulations on ieee test systems verify the effectiveness of the proposed methods.
+    targets:
+      - target_id: "39"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          There is a potential relationship between the focus of the paper and the G-PST research agenda.  The paper focusses on the transmission distribution interface which is important in the DER part of the research agenda and the specific research question is looking into how reliability services in planning can account for deliverability.
+          
+          Why this abstract falls below the next relevance level:
+          The research in the paper only relates to a small part of the research question and there are no signs of real practical application.  It is also not clear if the paper can provide real planning related benefits as it is really focussed on operations so more work would need to be done to bring this research in the paper closer to the practical G-PST research question.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=212 question_id=4
+  - id: id_excel_abs212_ra4
+    target_type: RA
+    abstract: >-
+      this article investigates the maximum transferable power (mtp) of inverter-based resources (ibrs) and provides the output capability curves (occs) of grid-tied grid-following inverters (gflis) and grid-forming inverters (gfmis). to this end, in the first part of the article, mathematical equations for gfli static, thermal, and phase-locked loop (pll)-induced power transfer limits are derived in terms of the grid short-circuit ratio (scr) and its x/r ratio. then, considering other operational limitations, such as the ibr ac- and dc-side voltage limits, the occ of the gfli is obtained. additionally, the impact of the reactive current and the reactive control mode on the occ is further studied, and accordingly, an auxiliary control loop is proposed to maximize the gfli mtp. in the second part of the article, a similar approach is employed to derive mathematical equations for gfmi static and thermal limits, and accordingly, the occ of a gfmi is obtained. the effects of the variation of the voltage set-point of the gfmi on its occ are then studied, and the superiority of gfmis compared to gflis is shown in terms of the mtp capability. eventually, several simulation and experimental cases are conducted to validate the obtained equations and occs for both grid-following and grid-forming control modes.
+    targets:
+      - target_id: "4"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          Thematically the paper abstract aligns very well with the IBR research program of the G-PST research agenda and specifically the research reported in this paper addresses capability and control design.  It also deals with these issues across the range of IBRs i.e. GFM and GFL. The focus of the paper is in addressing real issues and is not methodologically dominated which is another good sign.
+          
+          Why this abstract falls below the next relevance level:
+          The paper stops short of services and/or operational decision making which limits its potential linkage to the G-PST research question.  Although simulation results and experiments are noted it is not clear if they are at the right scale and applicability to be truly useful nor is it clear if a utility and/or a system operator are involved.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=44 question_id=4
+  - id: id_excel_abs44_ra4
+    target_type: RA
+    abstract: >-
+      when renewable energy-based generations are increasing, they are subject to cause frequency stability problems in a power system. to solve this problem, various virtual inertial control methods (vicms) have been recently developed. however, they all have dealt not with the steady-state frequency stability, but only with dynamic frequency stability issues. in particular, the wind power plants (wpps) operated by these vicms can only provide a similar inertial response (ir) to that by conventional synchronous generators without providing the primary frequency response (pfr). this results in lowering the settling frequency (sf) below the maximum steady-state frequency deviation (mssd) band. this paper proposes the new hierarchical control strategy for the wpps, which are operated by three virtual frequency response control methods (vfrcms) to provide both ir and pfr. firstly, the vfrcm-1 provides virtual ir. next, the vfrcm-2 increases the output power from the wpps to prevent the frequency drop, which can occur after the frequency nadir is arrested. finally, the vfrcm-3 makes the wpps possible to raise the sf above the mssd band by providing the virtual pfr. the effectiveness of proposed hierarchical control strategy is verified by several case studies on the ieee 39-bus test system with the high penetration of renewables.
+    targets:
+      - target_id: "4"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          This research paper abstract describes research that directly addresses the capability of wind plant to provide frequency control services.  It also directly addresses the control problem and there are case studies on a test network.  These are all indicative of a solid link with the G-PST research question.
+          
+          Why this abstract falls below the next relevance level:
+          The paper falls short of being strongly linked to the G-PST research question as it does not appear to be directed fully at the IBR aspects and it is also very focussed on the device rather than on the system itself.  Furthermore the case study is on a small typical test network and there does not appear to be any system operator involvement and/or any practical insights reported in the results.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=174 question_id=42
+  - id: id_excel_abs174_ra42
+    target_type: RA
+    abstract: >-
+      increased penetration of renewable resources and new loads have increased the uncertainty levels in low voltage distribution systems (lvds). this requires considering lvds planning, such as computing photovoltaics (pv) hosting capacity (hc), as a stochastic problem. traditionally, pv hc is computed using the iterative monte carlo method, which requires solving the power flow equations thousands of times. this paper proposes a chance-constrained optimization-based hosting capacity calculation technique, which eliminates the necessity of repetitive solving of power flow equations. the intrusive general polynomial chaos expansion is used to translate the input uncertainties defined by their probability density function to the hosting capacity of the network without the necessity of sampling, linearizing the power flow equations, or applying any relaxations. chance constraints are applied for nodal voltages and thermal overload as per the norms, where the system can be congested for a certain time without affecting the power quality. numerical illustrations show the computational time to compute the stochastic pv hosting capacity of a real large scale lvds, and for the majority of the feeders, it falls within 100 sec. furthermore, the estimated pv hc using this stochastic optimal power flow was, on average, 20% higher than its deterministic counterpart.
+    targets:
+      - target_id: "42"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          While there is good alignment from a methods perspective the practical application of the research may only be on the distribution network which may limit the research work being reported in the paper with respect to the G-PST transmission system perspective and scope.  There is also no sign of a real practical result and a path towards deployment of the research to system operators.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=134 question_id=23
+  - id: id_excel_abs134_ra23
+    target_type: RA
+    abstract: >-
+      power system congestion event prognosis (cep) based on multivariate time series (mts) learning is an effective way to improve the warning abilities against risky situations. however, it is still challenging to decide which measurement sequences of system variables should be selected to train mts learning-based ceps models, especially when facing high-dimensional candidate features from power systems. focusing on this issue, this paper proposes a novel high-dimensional feature selection (fs) method to identify and select variables that contain beneficial data patterns for the prognosis of network congestion events. a wrapper framework embedded with multiple mts learning models is first built to treat fs as a combinatorial optimization task and receive mts as inputs directly without sequence compressions. then, to improve the combinatorial optimization efficiency and fs results in the high-dimensional case, a hybrid structure called enhanced evolutionary computation (eec) is developed by combining with information theory-based feature priority scores, which play the role of semi-guidance in the iterative search. test results on both the real-world and synthetic datasets validate the effectiveness of the developed eec structure and show that the selected features by the proposed fs method are more beneficial in identifying the early patterns of network congestion events, thus contributing to efficient and accurate cep for power systems.
+    targets:
+      - target_id: "23"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          The focus of the paper on feature selection and training using large data sets is very well aligned with the underlying research question being asked for in the G-PST research agenda research question.  Real world data along with synthetic data is also used in the research paper.
+          
+          Why this abstract falls below the next relevance level:
+          While at a basic level the research paper abstract describes research that looks at large complex data sets to help in power system operations the focus of the paper is only on one aspect, congestion and there is also no sign that multiple time scales are addressed.  Therefore the research paper is potentially well linked with a very specific aspect of the G-PST research question but not the holistic aspects.  No practical next steps are identified nor is there any sign of a real system operator and/or industry partner.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=212 question_id=9
+  - id: id_excel_abs212_ra9
+    target_type: RA
+    abstract: >-
+      this article investigates the maximum transferable power (mtp) of inverter-based resources (ibrs) and provides the output capability curves (occs) of grid-tied grid-following inverters (gflis) and grid-forming inverters (gfmis). to this end, in the first part of the article, mathematical equations for gfli static, thermal, and phase-locked loop (pll)-induced power transfer limits are derived in terms of the grid short-circuit ratio (scr) and its x/r ratio. then, considering other operational limitations, such as the ibr ac- and dc-side voltage limits, the occ of the gfli is obtained. additionally, the impact of the reactive current and the reactive control mode on the occ is further studied, and accordingly, an auxiliary control loop is proposed to maximize the gfli mtp. in the second part of the article, a similar approach is employed to derive mathematical equations for gfmi static and thermal limits, and accordingly, the occ of a gfmi is obtained. the effects of the variation of the voltage set-point of the gfmi on its occ are then studied, and the superiority of gfmis compared to gflis is shown in terms of the mtp capability. eventually, several simulation and experimental cases are conducted to validate the obtained equations and occs for both grid-following and grid-forming control modes.
+    targets:
+      - target_id: "9"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          The scope of the paper abstract and the G-PST research question share a lot in common.  They are both driven by tools in the area of IBRs and their performance and capabilities.  The paper abstract focusses on all types of IBRs which is showing reach and potential applicability.  The paper mentions experimental cases which is indicative of applicability and it appears there are multiple cases which speaks to a potentially robust set of results.
+          
+          Why this abstract falls below the next relevance level:
+          The link at the tools level may break down when real case studies are tackled.  Additionally there is no mention of a real application and the paper is overly focussed on equations and not on real practical results.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=1 question_id=42
+  - id: id_excel_abs1_ra42
+    target_type: RA
+    abstract: >-
+      power systems with high penetration of renewable energy contain various uncertainties. scenario-based optimization problems need a large number of discrete scenarios to obtain a reliable approximation for the probabilistic model. it is important to choose typical scenarios and ease the computational burden. this paper presents a scenario reduction network model based on wasserstein distance. entropy regularization is used to transform the scenario reduction problem into an unconstrained problem. through an explicit neural network structure design, the output of the scenario reduction network corresponds to the sinkhorn distance function. the scenario reduction network can generate the typical scenario set through unsupervised learning. an efficient algorithm is proposed for continuous/discrete scenario reduction. the superiority of the scenario reduction network model is verified through case studies. the numerical results highlight the high accuracy and computational efficiency of the proposed model over state-of-the-art models, and it makes an ideal candidate for large-scale scenario reduction problems.
+    targets:
+      - target_id: "42"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          The research reported in the abstract addresses the need for some sort of dimensionality reduction in order to deal with uncertainties which will arise in future power systems.  This is a theme of the G-PST research questions in the planning research program.  The paper proposes a method to do this reduction and this is aligned with the methodological scope of the research question.
+          
+          Why this abstract falls below the next relevance level:
+          While there is a lot of alignment between the research question of the G-PST and the topic of the paper it is not clear if the research paper is developing the methods for application in planning which is the focus of the research question.  There is also no sign that the work has a pathway to application with a system operator.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=146 question_id=26
+  - id: id_excel_abs146_ra26
+    target_type: RA
+    abstract: >-
+      topology diagrams are widely seen in power system applications, but their automatic generation is often easier said than done. when facing power transmission systems with strongly-meshed structures, existing approaches can hardly produce topology diagrams catering to the aesthetics of readers. this paper proposes an integrated framework for generating aesthetically-pleasing topology diagrams for power transmission systems. input with a rough layout, the framework first conducts visibility region analysis to reduce line crossings and then solves a mixed-integer linear programming problem to optimize the arrangement of nodes. given that the complexity of both modules is pretty high, simplification heuristics are also proposed to enhance the efficiency of the framework. case studies on several power transmission systems containing up to 2,046 nodes demonstrate the capability of the proposed framework in generating topology diagrams conforming to aesthetic criteria in the power system community. compared with the widespread force-directed algorithm, the proposed framework can preserve the relative positions of nodes in the original layout to a great extent, which significantly contributes to the identification of electrical elements on the diagrams. meanwhile, the time consumption is acceptable for practical applications.
+    targets:
+      - target_id: "26"
+        score: 90
+        rationale: >-
+          Why this score was assigned:
+          Very strong link between the abstract of the paper with its focus on presenting graphically information that the user can use and interpret.  Practical application is a term used that is indicative that practical uses are being pursued.  The scale being quoted at over 2000 nodes is good to see and looks like scalability is very much in the minds of the researchers.  Case studies are done on several systems which is indicative of robustness of the results.
+          
+          Why this abstract falls below the next relevance level:
+          The actual title of the paper is not a good fit to the G-PST research agenda question but the abstract text is a good fit - hence reluctance to increase the score.  There is no direct reference to control rooms which is a little concerning and there are no system operator stakeholders involved.  There is also more an emphasis on the algorithm side than on the user side and there is no mention of real time.
