@@ -174,6 +174,45 @@ examples:
     assert "Label 2 Score: 61.0" in prompt
 
 
+def test_few_shot_prompt_keeps_long_abstract_and_rationale(monkeypatch, tmp_path):
+    mod = importlib.import_module("src.models.llm_affinity_reasoner")
+    monkeypatch.setattr(mod, "OpenAI", BatchReasonOpenAI)
+
+    long_abstract = "A" * 1400
+    long_rationale = "B" * 500
+    ra_file = tmp_path / "few_shot_ra.yaml"
+    ra_file.write_text(
+        f"""
+version: 1
+examples:
+  - id: ra_long
+    target_type: RA
+    abstract: {long_abstract}
+    target_id: 42
+    score: 77
+    rationale: {long_rationale}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("AFFINITY_ENABLE_FEW_SHOT", "1")
+    monkeypatch.setenv("AFFINITY_FEW_SHOT_RA_FILE", str(ra_file))
+
+    from src.models.llm_affinity_reasoner import LLMAffinityReasoner
+
+    reasoner = LLMAffinityReasoner(requests_per_minute=0)
+    prompt = reasoner._build_affinity_prompt(
+        abstract="Current abstract",
+        targets_text="1. [42] Current target",
+        target_type="RA",
+        required_ids=["42"],
+    )
+
+    assert long_abstract in prompt
+    assert long_rationale in prompt
+
+
 def test_affinity_reasons_enabled_for_ra_and_prp(monkeypatch):
     mod = importlib.import_module("src.models.llm_affinity_reasoner")
     monkeypatch.setattr(mod, "OpenAI", BatchReasonOpenAI)

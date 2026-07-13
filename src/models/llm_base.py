@@ -203,8 +203,10 @@ class LLMBase:
         return s
 
     @staticmethod
-    def _compact_text(value: Any, max_len: int = 600) -> str:
+    def _compact_text(value: Any, max_len: int | None = 600) -> str:
         txt = re.sub(r"\s+", " ", str(value or "")).strip()
+        if max_len is None:
+            return txt
         return txt[:max_len]
 
     @staticmethod

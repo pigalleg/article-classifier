@@ -40,7 +40,7 @@ runtime:
     enable_affinity_reasons: true
     few_shot_ra_file: data/prompts/few_shot_ra.yaml
     few_shot_prp_file: data/prompts/few_shot_prp.yaml
-    few_shot_max_examples_per_prompt: 3
+    few_shot_max_examples_per_prompt: 30
 
 models:
   embedding_model: all-mpnet-base-v2
@@ -119,7 +119,7 @@ models:
           backend: local
           model: mistral-large-3:675b-cloud
           execution_group: local_gpu
-          enabled: false
+          enabled: true
 
 
 thresholds:

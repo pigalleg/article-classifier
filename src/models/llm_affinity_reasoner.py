@@ -124,7 +124,7 @@ class LLMAffinityReasoner(LLMBase):
             if item_type != expected:
                 continue
 
-            abstract = self._compact_text(item.get("abstract"), max_len=900)
+            abstract = self._compact_text(item.get("abstract"), max_len=None)
             if not abstract:
                 continue
 
@@ -149,7 +149,7 @@ class LLMAffinityReasoner(LLMBase):
                         {
                             "target_id": target_id,
                             "score": max(0.0, min(120.0, score)),
-                            "rationale": self._compact_text(target.get("rationale"), max_len=300),
+                            "rationale": self._compact_text(target.get("rationale"), max_len=None),
                         }
                     )
 
@@ -172,7 +172,7 @@ class LLMAffinityReasoner(LLMBase):
                             {
                                 "target_id": target_id,
                                 "score": max(0.0, min(120.0, score)),
-                                "rationale": self._compact_text(rationale_raw, max_len=300),
+                                "rationale": self._compact_text(rationale_raw, max_len=None),
                             }
                         )
 
@@ -187,7 +187,7 @@ class LLMAffinityReasoner(LLMBase):
                                 {
                                     "target_id": target_id,
                                     "score": max(0.0, min(120.0, score)),
-                                    "rationale": self._compact_text(item.get("rationale"), max_len=300),
+                                    "rationale": self._compact_text(item.get("rationale"), max_len=None),
                                 }
                             )
                         except Exception:
@@ -229,7 +229,7 @@ class LLMAffinityReasoner(LLMBase):
                 for j, target in enumerate(targets, start=1):
                     lines.append(f"- Label {j} Target ID: {target.get('target_id', '')}")
                     lines.append(f"- Label {j} Score: {float(target.get('score', 0.0)):.1f}")
-                    rationale = self._compact_text(target.get("rationale"), max_len=300)
+                    rationale = self._compact_text(target.get("rationale"), max_len=None)
                     if rationale:
                         lines.append(f"- Label {j} Rationale: {rationale}")
             else:
