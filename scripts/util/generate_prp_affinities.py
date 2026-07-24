@@ -14,7 +14,7 @@ def generate_empty_prp_affinities(output_path: Path, abstracts_path: Path, prp_p
     
     Args:
         output_path: Path where the generated PRP affinities CSV will be written.
-        abstracts_path: Path to abstracts CSV file (must have 'Source_Index' and 'Document Title' columns).
+        abstracts_path: Path to abstracts CSV file (must have 'DOI', 'doi', or 'Source_Index' and 'Document Title' columns).
         prp_path: Path to PRP domains CSV file (must have 'Primary_Programme' and 'Description' columns).
     
     Raises:
@@ -61,7 +61,7 @@ def generate_empty_prp_affinities(output_path: Path, abstracts_path: Path, prp_p
             if already_classified in {"true", "1", "yes"}:
                 continue
             
-            abstract_index = abstract.get("Source_Index", "")
+            abstract_index = abstract.get("DOI") or abstract.get("doi") or abstract.get("Source_Index", "")
             doc_title = abstract.get("Document Title", "")
             
             for prp in prp_data:

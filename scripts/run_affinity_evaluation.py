@@ -137,6 +137,15 @@ def _normalize_id(value: Any) -> str:
     return s
 
 
+def _abstract_identifier(row: pd.Series, fallback: int) -> str:
+    for column in ("DOI", "doi", "Source_Index", "Abstract_Index"):
+        if column in row.index:
+            value = _normalize_id(row[column])
+            if value and value.lower() != "nan":
+                return value
+    return str(fallback)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run PRP and/or RA affinity evaluation")
     parser.add_argument(
@@ -597,7 +606,7 @@ def main():
         )
     for i in tqdm(range(n), desc="Evaluating affinities"):
         doc_title = titles.iloc[i]
-        src_idx = abstracts.iloc[i]["Source_Index"] if "Source_Index" in abstracts.columns else i
+        src_idx = _abstract_identifier(abstracts.iloc[i], i)
         abstract_text = abs_texts.iloc[i]
         if args.mode in {"ra", "both"}:
             routed_prps = prp_routing_map.get(str(src_idx)) if prp_routing_map else None
