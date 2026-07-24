@@ -23,6 +23,54 @@ examples:
           There is nothing direct within the abstract to link directly to aggregation and DERs.  The links are at best second hand.  The overall application of the abstract is on a test system not a real system and there is mention of the word theoretical which is not a confidence building term with respect to a real application.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=134 question_id=21
+  - id: id_excel_abs134_ra21
+    target_type: RA
+    abstract: >-
+      power system congestion event prognosis (cep) based on multivariate time series (mts) learning is an effective way to improve the warning abilities against risky situations. however, it is still challenging to decide which measurement sequences of system variables should be selected to train mts learning-based ceps models, especially when facing high-dimensional candidate features from power systems. focusing on this issue, this paper proposes a novel high-dimensional feature selection (fs) method to identify and select variables that contain beneficial data patterns for the prognosis of network congestion events. a wrapper framework embedded with multiple mts learning models is first built to treat fs as a combinatorial optimization task and receive mts as inputs directly without sequence compressions. then, to improve the combinatorial optimization efficiency and fs results in the high-dimensional case, a hybrid structure called enhanced evolutionary computation (eec) is developed by combining with information theory-based feature priority scores, which play the role of semi-guidance in the iterative search. test results on both the real-world and synthetic datasets validate the effectiveness of the developed eec structure and show that the selected features by the proposed fs method are more beneficial in identifying the early patterns of network congestion events, thus contributing to efficient and accurate cep for power systems.
+    targets:
+      - target_id: "21"
+        score: 50
+        rationale: >-
+          Why this score was assigned:
+          The research in this abstract has a reasonably good link to the research question.  The abstract describes a method to identify features that can be used to enhance the potential of harnessing flexibility resources.  There is reference to a real world test results which is encouraging.
+          
+          Why this abstract falls below the next relevance level:
+          While the links are potentially strong between the abstract and the research question they are not direct.  The abstract addresses congestion but the research question is focussed on flexibility - congestion has an impact of flexibility but is not a one to one relationship.  No clear link or working relationship with a system operator is evident.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=281 question_id=36
+  - id: id_excel_abs281_ra36
+    target_type: RA
+    abstract: >-
+      energy storage (es) is a kind of promising but costly fast-frequency-response (ffr) resource in low-inertia power systems. this article addresses the minimum demand of a power system for energy capacities of es to providing sufficient frequency support, including the formulation, the optimal solution, and its practical implementation. first, the minimum energy control problem of ess for providing ffr with transient frequency constraints is formulated and then converted into an optimal frequency trajectory planning counterpart. this transformation makes the transient frequency constraint tractable and allows to identify the optimal frequency trajectory that minimizes energy demand for ess, which leads to an analytical expression of the system minimum demand for ess energy capacities to ensure frequency security. moreover, by unfolding the optimal frequency trajectory, the optimal control strategy of ess is derived explicitly for the first time. the theoretical result directs to a practical controller implementation, which is referred to as the decentralized optimal energy frequency control (doefc). finally, simulations on the modified ieee 39-bus system verify our results and demonstrate the superiority of the doefc in reducing the energy capacity demand of ess, defending successive disturbances, and hedging against parameter errors.
+    targets:
+      - target_id: "36"
+        score: 70
+        rationale: >-
+          Why this score was assigned:
+          Although the word services (and IBRs) do not appear in the abstract it is directed at fast frequency response (FFR) which is a service - hence it is linked with this research question.  There are strong indications that applications are on their radar which is a positive.
+          
+          Why this abstract falls below the next relevance level:
+          The abstract is a little too focussed on the fancy internal methods and not on the interesting results around fast frequency response as a service.  Also no system operator is involved and the lack of a holistic type of approach that accounts for the multiple services required and their overlap is a shortcoming.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
+# Source: Excel sheet row abstract_id=146 question_id=26
+  - id: id_excel_abs146_ra26
+    target_type: RA
+    abstract: >-
+      topology diagrams are widely seen in power system applications, but their automatic generation is often easier said than done. when facing power transmission systems with strongly-meshed structures, existing approaches can hardly produce topology diagrams catering to the aesthetics of readers. this paper proposes an integrated framework for generating aesthetically-pleasing topology diagrams for power transmission systems. input with a rough layout, the framework first conducts visibility region analysis to reduce line crossings and then solves a mixed-integer linear programming problem to optimize the arrangement of nodes. given that the complexity of both modules is pretty high, simplification heuristics are also proposed to enhance the efficiency of the framework. case studies on several power transmission systems containing up to 2,046 nodes demonstrate the capability of the proposed framework in generating topology diagrams conforming to aesthetic criteria in the power system community. compared with the widespread force-directed algorithm, the proposed framework can preserve the relative positions of nodes in the original layout to a great extent, which significantly contributes to the identification of electrical elements on the diagrams. meanwhile, the time consumption is acceptable for practical applications.
+    targets:
+      - target_id: "26"
+        score: 90
+        rationale: >-
+          Why this score was assigned:
+          Very strong link between the abstract with its focus on presenting graphically information that the user can use and interpret.  Practical application is a term used that is indicative that practical uses are being pursued.  The scale being quoted at over 2000 nodes is good to see and looks like scalability is very much in the minds of the researchers.  Case studies are done on several systems which is indicative of robustness of the results.
+          
+          Why this abstract falls below the next relevance level:
+          The actual title of the abstract is not a good fit to the research question but the abstract text is a good fit - hence reluctance to increase the score.  There is no direct reference to control rooms which is a little concerning and there are no system operator stakeholders involved.  There is also more an emphasis on the algorithm side than on the user side and there is no mention of real time.
+
+# Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=94 question_id=13
   - id: id_excel_abs94_ra13
     target_type: RA
@@ -151,22 +199,6 @@ examples:
           The abstract does not address a research question in any direct way - it is focussed on the distribution system and not the transmission system therefore its link to the research question is minimal.  While there is an application in the abstract it is not on the transmission system so that is a big weakness with respect to a strong link with the research question.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
-# Source: Excel sheet row abstract_id=134 question_id=21
-  - id: id_excel_abs134_ra21
-    target_type: RA
-    abstract: >-
-      power system congestion event prognosis (cep) based on multivariate time series (mts) learning is an effective way to improve the warning abilities against risky situations. however, it is still challenging to decide which measurement sequences of system variables should be selected to train mts learning-based ceps models, especially when facing high-dimensional candidate features from power systems. focusing on this issue, this paper proposes a novel high-dimensional feature selection (fs) method to identify and select variables that contain beneficial data patterns for the prognosis of network congestion events. a wrapper framework embedded with multiple mts learning models is first built to treat fs as a combinatorial optimization task and receive mts as inputs directly without sequence compressions. then, to improve the combinatorial optimization efficiency and fs results in the high-dimensional case, a hybrid structure called enhanced evolutionary computation (eec) is developed by combining with information theory-based feature priority scores, which play the role of semi-guidance in the iterative search. test results on both the real-world and synthetic datasets validate the effectiveness of the developed eec structure and show that the selected features by the proposed fs method are more beneficial in identifying the early patterns of network congestion events, thus contributing to efficient and accurate cep for power systems.
-    targets:
-      - target_id: "21"
-        score: 50
-        rationale: >-
-          Why this score was assigned:
-          The research in this abstract has a reasonably good link to the research question.  The abstract describes a method to identify features that can be used to enhance the potential of harnessing flexibility resources.  There is reference to a real world test results which is encouraging.
-          
-          Why this abstract falls below the next relevance level:
-          While the links are potentially strong between the abstract and the research question they are not direct.  The abstract addresses congestion but the research question is focussed on flexibility - congestion has an impact of flexibility but is not a one to one relationship.  No clear link or working relationship with a system operator is evident.
-
-# Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=231 question_id=39
   - id: id_excel_abs231_ra39
     target_type: RA
@@ -276,22 +308,6 @@ examples:
           The link at the tools level may break down when real case studies are tackled.  Additionally there is no mention of a real application and the abstract is overly focussed on equations and not on real practical results.
 
 # Added by populate_few_shot_ra_from_excel_evaluations.py
-# Source: Excel sheet row abstract_id=281 question_id=36
-  - id: id_excel_abs281_ra36
-    target_type: RA
-    abstract: >-
-      energy storage (es) is a kind of promising but costly fast-frequency-response (ffr) resource in low-inertia power systems. this article addresses the minimum demand of a power system for energy capacities of es to providing sufficient frequency support, including the formulation, the optimal solution, and its practical implementation. first, the minimum energy control problem of ess for providing ffr with transient frequency constraints is formulated and then converted into an optimal frequency trajectory planning counterpart. this transformation makes the transient frequency constraint tractable and allows to identify the optimal frequency trajectory that minimizes energy demand for ess, which leads to an analytical expression of the system minimum demand for ess energy capacities to ensure frequency security. moreover, by unfolding the optimal frequency trajectory, the optimal control strategy of ess is derived explicitly for the first time. the theoretical result directs to a practical controller implementation, which is referred to as the decentralized optimal energy frequency control (doefc). finally, simulations on the modified ieee 39-bus system verify our results and demonstrate the superiority of the doefc in reducing the energy capacity demand of ess, defending successive disturbances, and hedging against parameter errors.
-    targets:
-      - target_id: "36"
-        score: 70
-        rationale: >-
-          Why this score was assigned:
-          Although the word services (and IBRs) do not appear in the abstract it is directed at fast frequency response (FFR) which is a service - hence it is linked with this research question.  There are strong indications that applications are on their radar which is a positive.
-          
-          Why this abstract falls below the next relevance level:
-          The abstract is a little too focussed on the fancy internal methods and not on the interesting results around fast frequency response as a service.  Also no system operator is involved and the lack of a holistic type of approach that accounts for the multiple services required and their overlap is a shortcoming.
-
-# Added by populate_few_shot_ra_from_excel_evaluations.py
 # Source: Excel sheet row abstract_id=1 question_id=42
   - id: id_excel_abs1_ra42
     target_type: RA
@@ -307,18 +323,3 @@ examples:
           Why this abstract falls below the next relevance level:
           While there is a lot of alignment between the research question of the G-PST and the topic of the abstract it is not clear if the abstract is developing the methods for application in planning which is the focus of the research question.  There is also no sign that the work has a pathway to application with a system operator.
 
-# Added by populate_few_shot_ra_from_excel_evaluations.py
-# Source: Excel sheet row abstract_id=146 question_id=26
-  - id: id_excel_abs146_ra26
-    target_type: RA
-    abstract: >-
-      topology diagrams are widely seen in power system applications, but their automatic generation is often easier said than done. when facing power transmission systems with strongly-meshed structures, existing approaches can hardly produce topology diagrams catering to the aesthetics of readers. this paper proposes an integrated framework for generating aesthetically-pleasing topology diagrams for power transmission systems. input with a rough layout, the framework first conducts visibility region analysis to reduce line crossings and then solves a mixed-integer linear programming problem to optimize the arrangement of nodes. given that the complexity of both modules is pretty high, simplification heuristics are also proposed to enhance the efficiency of the framework. case studies on several power transmission systems containing up to 2,046 nodes demonstrate the capability of the proposed framework in generating topology diagrams conforming to aesthetic criteria in the power system community. compared with the widespread force-directed algorithm, the proposed framework can preserve the relative positions of nodes in the original layout to a great extent, which significantly contributes to the identification of electrical elements on the diagrams. meanwhile, the time consumption is acceptable for practical applications.
-    targets:
-      - target_id: "26"
-        score: 90
-        rationale: >-
-          Why this score was assigned:
-          Very strong link between the abstract with its focus on presenting graphically information that the user can use and interpret.  Practical application is a term used that is indicative that practical uses are being pursued.  The scale being quoted at over 2000 nodes is good to see and looks like scalability is very much in the minds of the researchers.  Case studies are done on several systems which is indicative of robustness of the results.
-          
-          Why this abstract falls below the next relevance level:
-          The actual title of the abstract is not a good fit to the research question but the abstract text is a good fit - hence reluctance to increase the score.  There is no direct reference to control rooms which is a little concerning and there are no system operator stakeholders involved.  There is also more an emphasis on the algorithm side than on the user side and there is no mention of real time.

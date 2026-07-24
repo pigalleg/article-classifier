@@ -44,7 +44,7 @@ runtime:
     # Use this to switch the scoring language without editing code.
     score_scale_version: 2
     score_scale_file: data/prompts/affinity_scoring_scale.yaml
-    few_shot_max_examples_per_prompt: 30
+    few_shot_max_examples_per_prompt: 4
 
 models:
   embedding_model: all-mpnet-base-v2
