@@ -65,6 +65,12 @@ class LLMAffinityReasoner(LLMBase):
             enable_affinity_reasons if enable_affinity_reasons is not None else enable_affinity_reasons_env,
             _as_bool(self._reasoner_defaults.get("enable_affinity_reasons"), False),
         )
+        # Keep the active scoring language version in settings.yaml so prompt text can be switched centrally.
+        score_scale_version_raw = self._reasoner_defaults.get("score_scale_version")
+        self.score_scale_version = self._coerce_version(score_scale_version_raw)
+        score_scale_env = os.getenv("AFFINITY_SCORE_SCALE_FILE")
+        score_scale_path_raw = score_scale_env or self._reasoner_defaults.get("score_scale_file")
+        self.score_scale_prompts = self._load_score_scale_prompts(score_scale_path_raw, self.score_scale_version)
         few_shot_max_env = os.getenv("AFFINITY_FEW_SHOT_MAX_EXAMPLES")
         few_shot_max_default = _as_int(self._reasoner_defaults.get("few_shot_max_examples_per_prompt"), 2)
         self.few_shot_max_examples_per_prompt = max(
@@ -210,6 +216,99 @@ class LLMAffinityReasoner(LLMBase):
 
         return out
 
+    def _load_score_scale_prompts(self, path_raw: Any, selected_version: int | str | None) -> dict[str, str]:
+        path = self._resolve_repo_path(path_raw)
+        if path is None or not path.exists():
+            return {}
+
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except Exception as exc:
+            print(f"Warning: failed to load scoring scale file: {path} ({exc})")
+            return {}
+
+        targets = payload.get("targets") if isinstance(payload, dict) else None
+        if not isinstance(targets, dict):
+            print(f"Warning: invalid scoring scale format: {path} (expected a mapping under 'targets')")
+            return {}
+
+        active_version = selected_version
+        if active_version is None:
+            active_version_raw = payload.get("version") if isinstance(payload, dict) else None
+            active_version = self._coerce_version(active_version_raw)
+
+        prompts: dict[str, str] = {}
+        for key, value in targets.items():
+            prompt_text = self._resolve_score_scale_prompt_text(value, active_version)
+            prompt = self._compact_text(prompt_text, max_len=None)
+            if prompt:
+                prompts[str(key).strip().upper()] = prompt
+
+        return prompts
+
+    def _resolve_score_scale_prompt_text(self, value: Any, active_version: int | str | None) -> Any:
+        if isinstance(value, str) or value is None:
+            return value
+
+        if not isinstance(value, dict):
+            return value
+
+        if "prompt" in value:
+            return value.get("prompt")
+
+        if active_version is not None and active_version in value:
+            return value.get(active_version)
+
+        if active_version is not None:
+            try:
+                active_version_int = int(active_version)
+            except Exception:
+                active_version_int = None
+            if active_version_int is not None and active_version_int in value:
+                return value.get(active_version_int)
+
+        for fallback_key in (2, "2", 1, "1"):
+            if fallback_key in value:
+                return value.get(fallback_key)
+
+        first_value = next(iter(value.values()), None)
+        return first_value
+
+    def _coerce_version(self, value: Any) -> int | str | None:
+        if value is None:
+            return None
+        if isinstance(value, int):
+            return value
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            return int(text)
+        except Exception:
+            return text
+
+    def _default_score_scale_prompt(self, target_type: str) -> str:
+        normalized = str(target_type).strip().upper()
+        if normalized == "RA":
+            return (
+                "Score the abstract’s relevance to the research question from 0–120 using these ranges: "
+                "1–40 = Low relevance (0 = no relevance; topics may be tangentially related but do not directly address the questions’s goals); "
+                "41–80 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the questions’s core problem); "
+                "81–120 = High relevance (directly and substantially addresses the questions’s main objectives)."
+            )
+        return (
+            "Score the abstract’s relevance to the program from 0–120 using these ranges: "
+            "1–40 = Low relevance (0 = no relevance; topics may be tangentially related but do not directly address the program’s goals); "
+            "41–80 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); "
+            "81–120 = High relevance (directly and substantially addresses the program’s main objectives)."
+        )
+
+    def _score_scale_prompt(self, target_type: str) -> str:
+        normalized = str(target_type).strip().upper()
+        if normalized == "PRP_SCOPE":
+            normalized = "PRP"
+        return self.score_scale_prompts.get(normalized) or self._default_score_scale_prompt(normalized)
+
     def _format_few_shot_block(self, target_type: str) -> str:
         if not self.enable_few_shot:
             return ""
@@ -250,6 +349,7 @@ class LLMAffinityReasoner(LLMBase):
         required_ids_text = ", ".join(required_ids)
         if target_type == "PRP":
             few_shot_block = self._format_few_shot_block("PRP")
+            score_scale_prompt = self._score_scale_prompt("PRP")
             if self.enable_affinity_reasons:
                 rules_block = (
                     "- For each required ID, return an object with keys 'score' and 'reason'.\n"
@@ -264,7 +364,7 @@ class LLMAffinityReasoner(LLMBase):
             return (
                 "You are a power systems expert evaluator assessing research scope. "
                 "Evaluate the affinity between the abstract and a set of Primary Research Programmes (PRP). "
-                "Score the abstract’s relevance to the program from 0–120 using these ranges: 1–40 = Low relevance (0 = no relevance; topics may be tangentially related but do not directly address the program’s goals); 41–80 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 81–120 = High relevance (directly and substantially addresses the program’s main objectives).\n"
+                f"{score_scale_prompt}\n"
                 "Return ONLY one JSON object (no extra text).\n"
                 "Rules:\n"
                 "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
@@ -278,6 +378,7 @@ class LLMAffinityReasoner(LLMBase):
             )
 
         few_shot_block = self._format_few_shot_block("RA")
+        score_scale_prompt = self._score_scale_prompt("RA")
         if self.enable_affinity_reasons:
             rules_block = (
                 "- For each required ID, return an object with keys 'score' and 'reason'.\n"
@@ -292,7 +393,7 @@ class LLMAffinityReasoner(LLMBase):
         return (
             "You are a power systems expert evaluator assessing research scope. "
             "Evaluate the affinity between the abstract and a set of Research Agenda (RA) questions. "
-            "Score the abstract’s relevance to the research question from 0–120 using these ranges: 1–40 = Low relevance (0 = no relevance; topics may be tangentially related but do not directly address the questions’s goals); 41–80 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the questions’s core problem); 81–120 = High relevance (directly and substantially addresses the questions’s main objectives).\n"
+            f"{score_scale_prompt}\n"
             "Return ONLY one JSON object (no extra text).\n"
             "Rules:\n"
             "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
@@ -314,6 +415,7 @@ class LLMAffinityReasoner(LLMBase):
     ) -> str:
         required_ids_text = ", ".join(required_ids)
         few_shot_block = self._format_few_shot_block("PRP")
+        score_scale_prompt = self._score_scale_prompt("PRP_SCOPE")
         if self.enable_affinity_reasons:
             affinity_scores_example = (
                 '    "<ID_FROM_INPUT_1>": {"score": 0, "reason": "brief reason"},\n'
@@ -329,7 +431,7 @@ class LLMAffinityReasoner(LLMBase):
         return (
             "You are a power systems expert evaluator of research scope. "
             "Evaluate the affinity between the abstract and a set of Primary Research Programmes (PRP). "
-            "Score the abstract’s relevance to the program from 0–120 using these ranges: 1–40 = Low relevance (0 = no relevance; topics may be tangentially related but do not directly address the program’s goals); 41–80 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 81–120 = High relevance (directly and substantially addresses the program’s main objectives).\n"
+            f"{score_scale_prompt}\n"
             "An abstract can be outside PRP scope.\n\n"
             "Return ONLY one JSON object (no extra text) with this schema:\n"
             "{\n"

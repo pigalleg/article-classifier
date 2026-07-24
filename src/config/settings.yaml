@@ -40,6 +40,10 @@ runtime:
     enable_affinity_reasons: true
     few_shot_ra_file: data/prompts/few_shot_ra.yaml
     few_shot_prp_file: data/prompts/few_shot_prp.yaml
+    # Active version in data/prompts/affinity_scoring_scale.yaml.
+    # Use this to switch the scoring language without editing code.
+    score_scale_version: 2
+    score_scale_file: data/prompts/affinity_scoring_scale.yaml
     few_shot_max_examples_per_prompt: 30
 
 models:
@@ -105,7 +109,7 @@ models:
           base_url:
           api_key_env: OPENAI_CLOUD_API_KEY
           execution_group: cloud_openai
-          enabled: true
+          enabled: false
 
         - name: gemini-3.1-flash-lite # 
           backend: cloud
