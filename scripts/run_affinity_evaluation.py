@@ -115,6 +115,8 @@ ABSTRACTS_FILE = _as_str(
     os.getenv("AFFINITY_ABSTRACTS_FILE") or AFFINITY_DEFAULTS.get("abstracts_file"),
     "abstracts_cleaned.csv",
 )
+ABSTRACT_LOOKUP_FILE = "abstract_lookup_cleaned.csv"
+ABSTRACT_LOOKUP_DIR = _as_str(os.getenv("AFFINITY_ABSTRACT_LOOKUP_DIR"), RESULTS_DIR)
 PRP_MEMBERSHIP_CONFIDENCE_MIN = _as_float(
     os.getenv("AFFINITY_PRP_MEMBERSHIP_CONFIDENCE_MIN")
     or AFFINITY_DEFAULTS.get("prp_membership_confidence_min"),
@@ -144,6 +146,41 @@ def _abstract_identifier(row: pd.Series, fallback: int) -> str:
             if value and value.lower() != "nan":
                 return value
     return str(fallback)
+
+
+def _save_abstract_lookup_file(abstracts: pd.DataFrame, output_dir: str) -> None:
+    if "Abstract_Cleaned" not in abstracts.columns:
+        raise ValueError("abstracts must contain 'Abstract_Cleaned' to save the lookup file")
+
+    rows: list[dict[str, Any]] = []
+    for i, row in abstracts.reset_index(drop=True).iterrows():
+        rows.append({
+            "Abstract_Index": _abstract_identifier(row, i),
+            "Document Title": str(row.get("Document Title", "")).strip(),
+            "Abstract_Cleaned": str(row.get("Abstract_Cleaned", "")).strip(),
+        })
+
+    lookup_df = pd.DataFrame(rows)
+    if lookup_df.empty:
+        return
+
+    lookup_df = lookup_df[lookup_df["Abstract_Cleaned"].astype(str).str.strip() != ""].copy()
+    lookup_df = lookup_df.drop_duplicates(subset=["Abstract_Index"], keep="first")
+
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / ABSTRACT_LOOKUP_FILE
+    temp_path = out_dir / f".{ABSTRACT_LOOKUP_FILE}.{os.getpid()}.tmp"
+    lookup_df.to_csv(temp_path, index=False)
+    os.replace(temp_path, out_path)
+
+
+def _filter_unclassified_abstracts(abstracts: pd.DataFrame) -> pd.DataFrame:
+    if "Already_Classified" in abstracts.columns:
+        return abstracts[abstracts["Already_Classified"] != True]
+    if "already_classified" in abstracts.columns:
+        return abstracts[abstracts["already_classified"] != True]
+    return abstracts
 
 
 def parse_args() -> argparse.Namespace:
@@ -592,8 +629,9 @@ def main():
     prp_total_targets = 0
 
     # filter out already classified abstracts
-    abstracts = abstracts[abstracts["Already_Classified"] != True] 
+    abstracts = _filter_unclassified_abstracts(abstracts)
     n = len(abstracts)
+    _save_abstract_lookup_file(abstracts, ABSTRACT_LOOKUP_DIR)
     titles = abstracts["Document Title"] if "Document Title" in abstracts.columns else pd.Series([f"doc_{i}" for i in range(n)])
     abs_texts = abstracts["Abstract_Cleaned"].astype(str)
     prp_routing_map: Dict[str, List[str]] = {}

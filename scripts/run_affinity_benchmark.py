@@ -81,6 +81,13 @@ def _as_int(value: Any, default: int) -> int:
         return int(default)
 
 
+def _as_str(value: Any, default: str) -> str:
+    if value is None:
+        return str(default)
+    text = str(value).strip()
+    return text if text else str(default)
+
+
 def _slugify(value: str) -> str:
     s = str(value).strip().lower()
     s = re.sub(r"[^a-z0-9._-]+", "-", s)
@@ -93,6 +100,13 @@ def _is_nonempty_file(path: Path) -> bool:
         return path.exists() and path.is_file() and path.stat().st_size > 0
     except Exception:
         return False
+
+
+def _resolve_processed_path(path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return (REPO_ROOT / "data" / "processed" / path).resolve()
 
 
 @dataclass
@@ -270,6 +284,14 @@ def parse_args(settings: dict[str, Any]) -> argparse.Namespace:
         default=str(affinity_cfg.get("prp_scope_fallback_mode", "legacy_scores")),
     )
     parser.add_argument(
+        "--abstracts-file",
+        default=_as_str(
+            os.getenv("AFFINITY_ABSTRACTS_FILE") or affinity_cfg.get("abstracts_file"),
+            "abstracts_cleaned.csv",
+        ),
+        help="Cleaned abstracts input file name or path used by evaluation and fallback PRP generation",
+    )
+    parser.add_argument(
         "--enable-affinity-reasons",
         dest="enable_affinity_reasons",
         action=argparse.BooleanOptionalAction,
@@ -410,6 +432,8 @@ def main() -> None:
             continue
 
         env = _build_env(profile, model_dir)
+        env["AFFINITY_ABSTRACTS_FILE"] = args.abstracts_file
+        env["AFFINITY_ABSTRACT_LOOKUP_DIR"] = str(run_dir)
 
         try:
             if args.mode in {"prp", "both"}:
@@ -431,7 +455,7 @@ def main() -> None:
                 if args.ra_retrieval_mode in {"prp_filter", "prp_only"} and not _is_nonempty_file(prp_input):
                     # Generate empty PRP affinities file with all abstract-PRP pairs
                     print(f"[INFO] Generating empty PRP affinities with all abstract-PRP pairs...")
-                    abstracts_file = REPO_ROOT / "data" / "processed" / "abstracts_cleaned.csv"
+                    abstracts_file = _resolve_processed_path(args.abstracts_file)
                     prp_file = REPO_ROOT / "data" / "processed" / "primary_programmes.csv"
                     
                     if not _is_nonempty_file(abstracts_file) or not _is_nonempty_file(prp_file):

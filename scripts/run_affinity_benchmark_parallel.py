@@ -143,6 +143,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Launch the child benchmark processes in parallel, but forward --dry-run to them",
     )
+    parser.add_argument(
+        "--abstracts-file",
+        default=None,
+        help="Cleaned abstracts input file name or path forwarded to each child benchmark run",
+    )
     return parser
 
 
@@ -207,6 +212,7 @@ def _build_group_command(
     child_run_id: str,
     output_root: str,
     forwarded_args: list[str],
+    abstracts_file: str | None,
 ) -> list[str]:
     command = [
         sys.executable,
@@ -216,6 +222,8 @@ def _build_group_command(
         "--output-root",
         output_root,
     ]
+    if abstracts_file:
+        command.extend(["--abstracts-file", abstracts_file])
     command.extend(forwarded_args)
     return command
 
@@ -225,16 +233,19 @@ def _run_group(
     output_root: str,
     forwarded_args: list[str],
     child_dry_run: bool,
+    abstracts_file: str | None,
+    shared_lookup_dir: str,
 ) -> tuple[str, str]:
     env = dict(os.environ)
     env["AFFINITY_BENCHMARK_MODELS"] = ",".join(model.name for model in group.models)
     env["AFFINITY_BENCHMARK_BACKEND"] = group.backend
+    env["AFFINITY_ABSTRACT_LOOKUP_DIR"] = shared_lookup_dir
 
     child_args = list(forwarded_args)
     if child_dry_run and "--dry-run" not in child_args:
         child_args.append("--dry-run")
 
-    command = _build_group_command(group.dir_name, output_root, child_args)
+    command = _build_group_command(group.dir_name, output_root, child_args, abstracts_file)
     started = datetime.now(timezone.utc)
     print(f"[START] {group.name} at {started.isoformat()}")
     subprocess.run(command, cwd=str(REPO_ROOT), env=env, check=True)
@@ -297,7 +308,15 @@ def main() -> None:
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
-            executor.submit(_run_group, group, output_root, forwarded_args, args.spawn_dry_run)
+            executor.submit(
+                _run_group,
+                group,
+                output_root,
+                forwarded_args,
+                args.spawn_dry_run,
+                args.abstracts_file,
+                str(outer_run_root),
+            )
             for group in groups
         ]
 

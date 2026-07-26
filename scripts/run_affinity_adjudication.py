@@ -115,49 +115,59 @@ def _discover_run_dir(input_root: Path, run_id: str | None) -> Path:
     return candidates[-1]
 
 
-def _load_abstract_lookup(settings: dict[str, Any]) -> dict[str, str]:
-    paths_cfg = settings.get("paths", {})
-    runtime_affinity = settings.get("runtime", {}).get("affinity", {})
+def _build_abstract_lookup(df: pd.DataFrame, existing_lookup: Optional[dict[str, str]] = None) -> dict[str, str]:
+    lookup: dict[str, str] = dict(existing_lookup or {})
 
-    data_processed = paths_cfg.get("data_processed", "data/processed")
-    abstracts_file = runtime_affinity.get("abstracts_file", "abstracts_cleaned.csv")
+    if "Abstract_Index" not in df.columns:
+        return lookup
 
-    abs_path = (REPO_ROOT / data_processed / abstracts_file).resolve()
-    if not abs_path.exists():
-        return {}
+    text_col = None
+    for candidate in ("Abstract_Cleaned", "Abstract", "Document Title"):
+        if candidate in df.columns:
+            text_col = candidate
+            break
 
-    try:
-        df = pd.read_csv(abs_path)
-    except Exception:
-        return {}
-
-    text_col = "Abstract_Cleaned" if "Abstract_Cleaned" in df.columns else None
     if text_col is None:
-        text_col = "Abstract" if "Abstract" in df.columns else None
-    if text_col is None:
-        return {}
-
-    if "Source_Index" in df.columns:
-        idx_col = "Source_Index"
-    elif "Abstract_Index" in df.columns:
-        idx_col = "Abstract_Index"
-    else:
-        idx_col = None
-
-    lookup: dict[str, str] = {}
-    if idx_col is None:
-        for i, row in df.iterrows():
-            k = str(i + 1)
-            txt = str(row.get(text_col, "")).strip()
-            if txt:
-                lookup[k] = txt
         return lookup
 
     for _, row in df.iterrows():
-        k = _normalize_abstract_index(row.get(idx_col))
-        txt = str(row.get(text_col, "")).strip()
-        if k and txt:
-            lookup[k] = txt
+        key = _normalize_abstract_index(row.get("Abstract_Index"))
+        text = str(row.get(text_col, "")).strip()
+        if key and text and key not in lookup:
+            lookup[key] = text
+
+    return lookup
+
+
+def _load_saved_abstract_lookup(run_dir: Path) -> dict[str, str]:
+    lookup_path = run_dir / "abstract_lookup_cleaned.csv"
+    if not lookup_path.exists():
+        return {}
+
+    try:
+        df = pd.read_csv(lookup_path)
+    except Exception:
+        return {}
+
+    if "Abstract_Index" not in df.columns:
+        return {}
+
+    text_col = None
+    for candidate in ("Abstract_Cleaned", "Abstract"):
+        if candidate in df.columns:
+            text_col = candidate
+            break
+
+    if text_col is None:
+        return {}
+
+    lookup: dict[str, str] = {}
+    for _, row in df.iterrows():
+        key = _normalize_abstract_index(row.get("Abstract_Index"))
+        text = str(row.get(text_col, "")).strip()
+        if key and text:
+            lookup[key] = text
+
     return lookup
 
 
@@ -302,7 +312,7 @@ def _build_adjudication_targets(rows: pd.DataFrame) -> list[dict[str, Any]]:
         for _, r in g.iterrows():
             ev = {
                 "model_slug": r.get("Model_Slug"),
-                "llm_affinity": float(r.get("LLM_Affinity")),
+                "llm_affinity": _as_float(r.get("LLM_Affinity"), 0.0),
             }
             if has_reason:
                 reason = r.get("LLM_Affinity_Reason")
@@ -333,7 +343,7 @@ def _build_adjudication_targets_generic(
         for _, r in g.iterrows():
             ev = {
                 "model_slug": r.get("Model_Slug"),
-                "llm_affinity": float(r.get("LLM_Affinity")),
+                "llm_affinity": _as_float(r.get("LLM_Affinity"), 0.0),
             }
             if has_reason:
                 reason = r.get("LLM_Affinity_Reason")
@@ -795,7 +805,7 @@ def main() -> None:
         write_run_metadata_file(run_dir / "run_metadata.json", run_meta)
     except Exception:
         run_meta = {"git": {"commit": None, "commit_short": None, "branch": None}}
-    abstract_lookup = _load_abstract_lookup(settings)
+    abstract_lookup: dict[str, str] = _load_saved_abstract_lookup(run_dir)
 
     reasoner: Optional[Any] = None
     if not args.dry_run:
@@ -818,6 +828,7 @@ def main() -> None:
 
         merged_prp = pd.read_csv(prp_path)
         merged_prp = _subset_first_n_abstracts(merged_prp, args.first_n_abstracts)
+        abstract_lookup = _build_abstract_lookup(merged_prp, existing_lookup=abstract_lookup)
         if args.first_n_abstracts is not None:
             print(f"[PRP] Filtered to first {args.first_n_abstracts} abstracts -> {len(merged_prp)} rows")
 
@@ -849,6 +860,7 @@ def main() -> None:
 
         merged_ra = pd.read_csv(ra_path)
         merged_ra = _subset_first_n_abstracts(merged_ra, args.first_n_abstracts)
+        abstract_lookup = _build_abstract_lookup(merged_ra, existing_lookup=abstract_lookup)
         if args.first_n_abstracts is not None:
             print(f"[RA] Filtered to first {args.first_n_abstracts} abstracts -> {len(merged_ra)} rows")
 
