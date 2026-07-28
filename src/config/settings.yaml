@@ -83,18 +83,6 @@ models:
       models_env_var: AFFINITY_BENCHMARK_MODELS
       backend_env_var: AFFINITY_BENCHMARK_BACKEND
       models:
-        - name: gemma4:31b-cloud
-          backend: local
-          model: gemma4:31b-cloud
-          execution_group: local_gpu
-          enabled: true
-
-        - name: ministral-3:14b-cloud
-          backend: local
-          model: ministral-3:14b-cloud
-          execution_group: local_gpu
-          enabled: true
-
         - name: gpt-5.4-mini
           backend: cloud
           model: gpt-5.4-mini
@@ -118,11 +106,23 @@ models:
           api_key_env: GOOGLE_API_KEY
           execution_group: cloud_google
           enabled: true
+        
+        - name: gemma4:31b-cloud
+          backend: local
+          model: gemma4:31b-cloud
+          execution_group: local_gpu_1
+          enabled: true
 
         - name: mistral-large-3:675b-cloud # fast
           backend: local
           model: mistral-large-3:675b-cloud
-          execution_group: local_gpu
+          execution_group: local_gpu_2
+          enabled: true
+
+        - name: deepseek-v4-flash-cloud # fast
+          backend: local
+          model: deepseek-v4-flash:cloud
+          execution_group: local_gpu_3
           enabled: true
 
 

@@ -129,6 +129,35 @@ def test_adjudicator_ra_target_type_uses_research_questions_prompt(monkeypatch):
 
     assert out["37"]["score"] == 65.0
     assert out["37"]["reason"] == "resolved for RA evidence"
-    
+
     prompt = reasoner.client.chat.completions.prompts[-1]
     assert "Research questions with model evidence" in prompt
+
+
+def test_adjudicator_uses_reasoner_score_scale_prompt(monkeypatch):
+    mod = importlib.import_module("src.models.llm_affinity_adjudicator_reasoner")
+    monkeypatch.setattr(mod, "OpenAI", _AdjOpenAI)
+    monkeypatch.setenv("AFFINITY_ENABLE_AFFINITY_REASONS", "0")
+    monkeypatch.setenv("AFFINITY_ENABLE_FEW_SHOT", "0")
+
+    from src.models.llm_affinity_adjudicator_reasoner import LLMAffinityAdjudicatorReasoner
+
+    reasoner = LLMAffinityAdjudicatorReasoner(requests_per_minute=0)
+    reasoner.adjudicate_batch(
+        abstract="Test abstract",
+        targets=[
+            {
+                "id": "Planning",
+                "text": "Planning target",
+                "model_evidence": [
+                    {"model_slug": "m1", "llm_affinity": 85},
+                    {"model_slug": "m2", "llm_affinity": 40},
+                ],
+            }
+        ],
+        target_type="PRP",
+    )
+
+    prompt = reasoner.client.chat.completions.prompts[-1]
+    assert "[0,120]" in prompt
+    assert "Score the abstract" in prompt

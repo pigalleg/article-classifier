@@ -7,10 +7,11 @@ from typing import Any
 
 from openai import OpenAI
 
-from .llm_base import LLMBase, _as_bool, _as_int
+from .llm_affinity_reasoner import LLMAffinityReasoner
+from .llm_base import _as_bool, _as_int
 
 
-class LLMAffinityAdjudicatorReasoner(LLMBase):
+class LLMAffinityAdjudicatorReasoner(LLMAffinityReasoner):
     """LLM adjudicator for final affinity resolution using cross-model evidence."""
 
     def __init__(
@@ -23,6 +24,7 @@ class LLMAffinityAdjudicatorReasoner(LLMBase):
         base_url=None,
         api_key=None,
         micro_batch_size=None,
+        enable_few_shot=None,
         enable_affinity_reasons=None,
     ):
         super().__init__(
@@ -33,29 +35,14 @@ class LLMAffinityAdjudicatorReasoner(LLMBase):
             requests_per_minute=requests_per_minute,
             base_url=base_url,
             api_key=api_key,
+            micro_batch_size=micro_batch_size,
+            enable_few_shot=enable_few_shot,
+            enable_affinity_reasons=enable_affinity_reasons,
             openai_client_cls=OpenAI,
         )
 
         debug_env = os.getenv("AFFINITY_DEBUG")
         self.affinity_debug = _as_bool(debug_env, _as_bool(self._affinity_defaults.get("affinity_debug"), False))
-
-        mbs_env = os.getenv("AFFINITY_MICRO_BATCH_SIZE")
-        mbs_default = _as_int(self._reasoner_defaults.get("micro_batch_size"), 10)
-        try:
-            mbs_val = int(
-                micro_batch_size
-                if micro_batch_size is not None
-                else (mbs_env if mbs_env is not None else mbs_default)
-            )
-        except Exception:
-            mbs_val = mbs_default
-        self.micro_batch_size = max(1, mbs_val)
-
-        enable_affinity_reasons_env = os.getenv("AFFINITY_ENABLE_AFFINITY_REASONS")
-        self.enable_affinity_reasons = _as_bool(
-            enable_affinity_reasons if enable_affinity_reasons is not None else enable_affinity_reasons_env,
-            _as_bool(self._reasoner_defaults.get("enable_affinity_reasons"), False),
-        )
 
     def _build_adjudication_prompt(
         self,
@@ -65,6 +52,9 @@ class LLMAffinityAdjudicatorReasoner(LLMBase):
         required_ids: list[str],
     ) -> str:
         required_ids_text = ", ".join(required_ids)
+        target_label = "Primary Research Programmes" if str(target_type).upper() == "PRP" else "Research questions"
+        few_shot_block = self._format_few_shot_block(target_type)
+        score_scale_prompt = self._score_scale_prompt(target_type)
 
         if self.enable_affinity_reasons:
             rules_block = (
@@ -76,18 +66,19 @@ class LLMAffinityAdjudicatorReasoner(LLMBase):
                 '"<ID_FROM_INPUT_2>": {"score": 35, "reason": "majority low affinity with consistent rationale"}}\n\n'
             )
         else:
-            rules_block = "- Values must be numbers in [0,100].\n"
+            rules_block = "- Values must be numbers in [0,120].\n"
             example_block = '{"<ID_FROM_INPUT_1>": 72, "<ID_FROM_INPUT_2>": 35}\n\n'
 
-        target_label = "Primary Research Programmes" if str(target_type).upper() == "PRP" else "Research questions"
         return (
             "You are a power systems expert adjudicator consolidating affinity assessments from multiple models. "
-            "For each target ID, synthesize the evidence and return a final affinity score from 0 to 100.\n"
+            "For each target ID, synthesize the evidence and return a final affinity score.\n"
+            f"{score_scale_prompt}\n"
             "Return ONLY one JSON object (no extra text).\n"
             "Rules:\n"
             "- Include ALL required IDs exactly once as keys; do not add/rename keys.\n"
             f"{rules_block}"
             f"Required IDs: {required_ids_text}\n\n"
+            f"{few_shot_block}"
             f"Abstract:\n{abstract}\n\n"
             f"{target_label} with model evidence:\n{targets_text}\n\n"
             "Output JSON example:\n"
@@ -104,7 +95,7 @@ class LLMAffinityAdjudicatorReasoner(LLMBase):
             evidence = target.get("model_evidence") or []
 
             required_ids.append(target_id)
-            lines.append(f"{idx}. [{target_id}] {target_text}")
+            lines.append(f"[{target_id}] {target_text}")
 
             if not isinstance(evidence, list) or not evidence:
                 lines.append("   - No model evidence provided")

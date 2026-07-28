@@ -28,6 +28,7 @@ class LLMAffinityReasoner(LLMBase):
         micro_batch_size=None,
         enable_few_shot=None,
         enable_affinity_reasons=None,
+        openai_client_cls=None,
     ):
         super().__init__(
             model=model,
@@ -37,7 +38,7 @@ class LLMAffinityReasoner(LLMBase):
             requests_per_minute=requests_per_minute,
             base_url=base_url,
             api_key=api_key,
-            openai_client_cls=OpenAI,
+            openai_client_cls=openai_client_cls or OpenAI,
         )
 
         debug_env = os.getenv("AFFINITY_DEBUG")
