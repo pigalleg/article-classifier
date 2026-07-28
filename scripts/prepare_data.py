@@ -18,6 +18,15 @@ RAW_DIR = "data/raw"
 PROCESSED_DIR = "data/processed"
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
+PUBLICATION_JOURNAL_ABBREVIATIONS = {
+    "TEC_2000_2026_ieee.csv": "TEC",
+    "TEMPR_2023_2026_ieee.csv": "TEMPR",
+    "TPWRD_2000_2026_ieee.csv": "TPWRD",
+    "TPWRS_2000_2026_ieee.csv": "TPWRS",
+    "TSG_2010_2026_ieee.csv": "TSG",
+    "TSTE_2010_2026_ieee.csv": "TSTE",
+}
+
 
 def _default_ieee_input_files() -> list[Path]:
     return [
@@ -127,6 +136,8 @@ def clean_IEEE_abstracts(input_files=None):
                 "title",
                 "document title",
                 "abstract",
+                "publication_title",
+                "publication_year",
                 "authors",
                 "author keywords",
                 "ieee terms",
@@ -147,6 +158,11 @@ def clean_IEEE_abstracts(input_files=None):
         elif "document title" in ieee.columns and "title" in ieee.columns:
             ieee["document title"] = ieee["document title"].fillna(ieee["title"])
         ieee["Document Title"] = ieee["document title"]
+        if "publication_title" in ieee.columns:
+            ieee["publication_journal"] = PUBLICATION_JOURNAL_ABBREVIATIONS.get(
+                input_file.name,
+                ieee["publication_title"].astype(str).str.strip(),
+            )
         ieee["Abstract_Cleaned"] = ieee["abstract"].apply(clean_text)
         if "author keywords" in ieee.columns and "ieee terms" in ieee.columns:
             ieee["Keywords_Cleaned"] = ieee[["author keywords", "ieee terms"]].fillna("").agg("; ".join, axis=1)
@@ -167,7 +183,10 @@ def clean_IEEE_abstracts(input_files=None):
             "Source_Index",
             "Document Title",
             "abstract",
+            "publication_title",
+            "publication_journal",
             "Abstract_Cleaned",
+            "publication_year",
             "author keywords",
             "ieee terms",
             "Keywords_Cleaned",

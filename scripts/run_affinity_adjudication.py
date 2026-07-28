@@ -216,13 +216,11 @@ def _affinity_level_fixed(score):
         except Exception:
             return pd.NA
         # Treat 0 as explicit 'no relevance' (map to NA for level labelling)
-        if x == 0:
-            return pd.NA
-        if 1 <= x <= 40:
+        if 0 <= x < 40:
             return 'Low'
-        if 40 < x <= 80:
+        if 40 <= x < 80:
             return 'Moderate'
-        if 80 < x <= 120:
+        if 80 <= x:
             return 'High'
         return pd.NA
 

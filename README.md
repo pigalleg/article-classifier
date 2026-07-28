@@ -291,6 +291,50 @@ Score mapping used:
 - `4 -> 90`
 - `5 -> 110`
 
+### Build Calibration File From Raw Excel Evaluation Matrix
+
+Use the utility script below to generate a calibration CSV directly from the
+raw evaluation workbook in `data/raw`.
+
+Default workbook:
+- `data/raw/Abstracts Evaluation Template - Mark OM.xlsm`
+
+The generator reads `Evaluation Matrix - Mark`, keeps questions that are either
+in the row-3 selected program subset or have an affinity score greater than 0,
+and writes `calibration_abstract_question_affinities.csv` under a date-stamped
+run folder in `data/results/affinity_calibration/`.
+
+Dry run (preview only):
+
+```bash
+python scripts/util/generate_affinity_calibration_from_excel.py --dry-run
+```
+
+Write mode:
+
+```bash
+python scripts/util/generate_affinity_calibration_from_excel.py
+```
+
+With explicit input/output arguments:
+
+```bash
+python scripts/util/generate_affinity_calibration_from_excel.py \
+  --input-xlsx "data/raw/Abstracts Evaluation Template - Mark OM.xlsm" \
+  --sheet-name "Evaluation Matrix - Mark" \
+  --output-root data/results/affinity_calibration
+```
+
+Output columns:
+- `Abstract_Index`
+- `Document Title`
+- `Question ID`
+- `RA_Question`
+- `Evaluator_Affinity`
+- `Evaluator_Affinity_Level`
+- `Evaluator_Affinity_Reason`
+- `Source_Evaluator`
+
 ## Script Outputs
 
 <!-- - `prepare_data.py` -> `data/processed/abstracts_cleaned.csv`, `data/processed/ra_questions_cleaned.csv`, `data/processed/primary_programmes.csv` -->
