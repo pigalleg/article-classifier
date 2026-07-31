@@ -140,6 +140,57 @@ class LLMBase:
         self.requests_per_minute = max(0, rpm_val)
         self._min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute > 0 else 0.0
         self._last_request_time = 0.0
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+        self.total_tokens = 0
+
+    @staticmethod
+    def _to_nonnegative_int(value: Any) -> int | None:
+        try:
+            parsed = int(value)
+            return parsed if parsed >= 0 else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _usage_get(usage: Any, key: str) -> Any:
+        if usage is None:
+            return None
+        if isinstance(usage, dict):
+            return usage.get(key)
+        return getattr(usage, key, None)
+
+    def _record_response_token_usage(self, response: Any) -> None:
+        usage = self._usage_get(response, "usage")
+        if usage is None:
+            return
+
+        input_tokens = self._to_nonnegative_int(
+            self._usage_get(usage, "input_tokens")
+        )
+        if input_tokens is None:
+            input_tokens = self._to_nonnegative_int(self._usage_get(usage, "prompt_tokens"))
+
+        output_tokens = self._to_nonnegative_int(
+            self._usage_get(usage, "output_tokens")
+        )
+        if output_tokens is None:
+            output_tokens = self._to_nonnegative_int(self._usage_get(usage, "completion_tokens"))
+
+        total_tokens = self._to_nonnegative_int(self._usage_get(usage, "total_tokens"))
+        if total_tokens is None and (input_tokens is not None or output_tokens is not None):
+            total_tokens = int((input_tokens or 0) + (output_tokens or 0))
+
+        self.total_input_tokens += int(input_tokens or 0)
+        self.total_output_tokens += int(output_tokens or 0)
+        self.total_tokens += int(total_tokens or 0)
+
+    def get_token_usage_totals(self) -> dict[str, int]:
+        return {
+            "input_tokens": int(self.total_input_tokens),
+            "output_tokens": int(self.total_output_tokens),
+            "total_tokens": int(self.total_tokens),
+        }
 
     def _endpoint_for_logs(self) -> str:
         if self._resolved_base_url:
@@ -320,6 +371,7 @@ class LLMBase:
                     messages=[{"role": "user", "content": prompt}],
                     temperature=temperature,
                 )
+                self._record_response_token_usage(resp)
                 self._last_request_time = time.time()
 
                 message_content = getattr(resp.choices[0].message, "content", None) if getattr(resp, "choices", None) else None

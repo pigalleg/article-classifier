@@ -8,8 +8,8 @@ runtime:
   affinity:
     top_k: 48 # Number of research questions to consider for affinity scoring. 
     save_every: 2
-    mode: both
-    ra_retrieval_mode: prp_only
+    mode: ra # 'both', 'prp', or 'ra'
+    ra_retrieval_mode: cosine 
     abstracts_file: abstracts_cleaned.csv
     prp_input: data/results/prp_affinities.csv
     prp_top_n: 6 # For ra_retrieval_mode = prp_only or prp_filter, it selects the RA question from the top N PRPs by affinity score; set to 1 to always select from the single highest-affinity PRP.
@@ -18,7 +18,7 @@ runtime:
     prp_scope_fallback_mode: legacy_scores # The abstract is scored against all PRPs (including General), and no out-of-scope zeroing rule is applied for that abstract.
     affinity_debug: false
     adjudication:
-      mode: both  # 'both', 'prp', or 'ra'
+      mode: ra  # 'both', 'prp', or 'ra'
       input_root: data/results/affinity_benchmark
       prp_input_file: merged_prp_affinities.csv
       ra_input_file: merged_ra_affinities.csv
@@ -124,6 +124,40 @@ models:
           model: deepseek-v4-flash:cloud
           execution_group: local_gpu_3
           enabled: true
+
+        # OpenAI-compatible cloud profiles for externally hosted models.
+        # Endpoint/key settings are provider-specific.
+        - name: claude-haiku-4.5
+          backend: cloud
+          model: claude-haiku-4.5
+          base_url: https://api.anthropic.com/v1/
+          api_key_env: ANTHROPIC_API_KEY
+          execution_group: cloud_anthropic
+          enabled: false
+
+        - name: deepseek-v4-flash
+          backend: cloud
+          model: deepseek-v4-flash
+          base_url: https://api.deepseek.com
+          api_key_env: DEEPSEEK_API_KEY
+          execution_group: cloud_deepseek
+          enabled: false
+
+        # - name: qwen/qwen3.6-27b
+        #   backend: cloud
+        #   model: qwen/qwen3.6-27b
+        #   base_url: https://openrouter.ai/api/v1
+        #   api_key_env: OPENROUTER_API_KEY
+        #   execution_group: cloud_openrouter
+        #   enabled: false
+
+        - name: mistral-large-2512
+          backend: cloud
+          model: mistral-large-2512
+          base_url: https://api.mistral.ai/v1
+          api_key_env: MISTRAL_API_KEY
+          execution_group: cloud_mistral
+          enabled: false
 
 
 thresholds:

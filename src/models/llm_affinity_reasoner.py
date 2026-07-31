@@ -634,6 +634,7 @@ class LLMAffinityReasoner(LLMBase):
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.0,
                 )
+                self._record_response_token_usage(resp)
                 self._last_request_time = time.time()
 
                 message_content = getattr(resp.choices[0].message, "content", None) if getattr(resp, "choices", None) else None

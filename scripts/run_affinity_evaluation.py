@@ -99,7 +99,7 @@ except ModuleNotFoundError:
     from util.metadata import get_run_metadata, write_run_metadata_file
 
 try:
-    run_meta = get_run_metadata(repo_root=Path("."), settings_path=CFG_PATH)
+    run_meta = get_run_metadata(repo_root=Path("."), settings_path=Path(CFG_PATH))
     write_run_metadata_file(Path(RESULTS_DIR) / "run_metadata.json", run_meta)
 except Exception:
     run_meta = {"git": {"commit": None, "commit_short": None, "branch": None}}
@@ -155,7 +155,7 @@ def _save_abstract_lookup_file(abstracts: pd.DataFrame, output_dir: str) -> None
     rows: list[dict[str, Any]] = []
     for i, row in abstracts.reset_index(drop=True).iterrows():
         rows.append({
-            "Abstract_Index": _abstract_identifier(row, i),
+            "Abstract_Index": _abstract_identifier(row, int(i)),
             "Document Title": str(row.get("Document Title", "")).strip(),
             "Abstract_Cleaned": str(row.get("Abstract_Cleaned", "")).strip(),
         })
@@ -194,8 +194,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ra-retrieval-mode",
         choices=["cosine", "prp_filter", "prp_only"],
-        default=str(AFFINITY_DEFAULTS.get("ra_retrieval_mode", "prp_only")),
-        help="RA candidate retrieval strategy (default: prp_only)",
+        default=str(AFFINITY_DEFAULTS.get("ra_retrieval_mode", "cosine")),
+        help="RA candidate retrieval strategy (default: cosine)",
     )
     parser.add_argument(
         "--prp-input",
@@ -627,6 +627,12 @@ def main():
     prp_total_elapsed = 0.0
     ra_total_targets = 0
     prp_total_targets = 0
+    ra_input_tokens = 0
+    ra_output_tokens = 0
+    ra_total_tokens = 0
+    prp_input_tokens = 0
+    prp_output_tokens = 0
+    prp_total_tokens = 0
 
     # filter out already classified abstracts
     abstracts = _filter_unclassified_abstracts(abstracts)
@@ -648,6 +654,11 @@ def main():
         abstract_text = abs_texts.iloc[i]
         if args.mode in {"ra", "both"}:
             routed_prps = prp_routing_map.get(str(src_idx)) if prp_routing_map else None
+            before_usage = reasoner.get_token_usage_totals() if hasattr(reasoner, "get_token_usage_totals") else {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            }
             ra_start = time.perf_counter()
             ra_records = evaluate_ra_affinity_for_abstract(
                 abstract_text,
@@ -663,8 +674,21 @@ def main():
             ra_total_elapsed += ra_elapsed
             ra_total_targets += len(ra_records)
             ra_rows.extend(ra_records)
+            after_usage = reasoner.get_token_usage_totals() if hasattr(reasoner, "get_token_usage_totals") else {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            }
+            ra_input_tokens += max(0, int(after_usage.get("input_tokens", 0) or 0) - int(before_usage.get("input_tokens", 0) or 0))
+            ra_output_tokens += max(0, int(after_usage.get("output_tokens", 0) or 0) - int(before_usage.get("output_tokens", 0) or 0))
+            ra_total_tokens += max(0, int(after_usage.get("total_tokens", 0) or 0) - int(before_usage.get("total_tokens", 0) or 0))
 
         if args.mode in {"prp", "both"}:
+            before_usage = reasoner.get_token_usage_totals() if hasattr(reasoner, "get_token_usage_totals") else {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            }
             prp_start = time.perf_counter()
             try:
                 prp_records = evaluate_prp_affinity_for_abstract(
@@ -689,6 +713,14 @@ def main():
             prp_total_elapsed += prp_elapsed
             prp_total_targets += len(prp_records)
             prp_rows.extend(prp_records)
+            after_usage = reasoner.get_token_usage_totals() if hasattr(reasoner, "get_token_usage_totals") else {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            }
+            prp_input_tokens += max(0, int(after_usage.get("input_tokens", 0) or 0) - int(before_usage.get("input_tokens", 0) or 0))
+            prp_output_tokens += max(0, int(after_usage.get("output_tokens", 0) or 0) - int(before_usage.get("output_tokens", 0) or 0))
+            prp_total_tokens += max(0, int(after_usage.get("total_tokens", 0) or 0) - int(before_usage.get("total_tokens", 0) or 0))
 
         if (i + 1) % SAVE_EVERY == 0:
             if args.mode in {"ra", "both"}:
@@ -724,6 +756,9 @@ def main():
             targets_evaluated=ra_total_targets,
             records_written=len(ra_rows),
             elapsed_seconds=ra_total_elapsed,
+            input_tokens=ra_input_tokens,
+            output_tokens=ra_output_tokens,
+            total_tokens=ra_total_tokens,
         )
     if args.mode in {"prp", "both"}:
         timing_logger.log_event(
@@ -733,6 +768,9 @@ def main():
             targets_evaluated=prp_total_targets,
             records_written=len(prp_rows),
             elapsed_seconds=prp_total_elapsed,
+            input_tokens=prp_input_tokens,
+            output_tokens=prp_output_tokens,
+            total_tokens=prp_total_tokens,
         )
 
     if args.mode in {"ra", "both"}:
