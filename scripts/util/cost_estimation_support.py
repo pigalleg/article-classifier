@@ -9,6 +9,14 @@ COST_EXTRAPOLATION_ABSTRACT_COUNT = 100
 # Ollama remains unknown because no runtime, hardware, or electricity data
 # were available in the source document.
 MODEL_PRICING_USD: dict[str, dict[str, float | str]] = {
+    # xAI pricing tier used here: grok-4.20-0309-reasoning with prompt length
+    # < 200k tokens.
+    # Source: https://docs.x.ai/developers/pricing
+    "grok-4.20-0309-reasoning": {
+        "pricing_mode": "standard_api",
+        "input_usd_per_million_tokens": 1.25,
+        "output_usd_per_million_tokens": 2.50,
+    },
     "gemini-3.1-flash-lite": {
         "pricing_mode": "standard_api",
         "input_usd_per_million_tokens": 0.25,
@@ -45,12 +53,12 @@ def calculate_api_cost_usd(
     input_cost_usd = (
         input_tokens
         / 1_000_000
-        * rates["input_usd_per_million_tokens"]
+        * float(rates["input_usd_per_million_tokens"])
     )
     output_cost_usd = (
         output_tokens
         / 1_000_000
-        * rates["output_usd_per_million_tokens"]
+        * float(rates["output_usd_per_million_tokens"])
     )
 
     return input_cost_usd + output_cost_usd

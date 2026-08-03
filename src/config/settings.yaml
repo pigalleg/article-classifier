@@ -91,13 +91,13 @@ models:
           execution_group: cloud_openai
           enabled: true
 
-        - name: gpt-5.4
-          backend: cloud
-          model: gpt-5.4
-          base_url:
-          api_key_env: OPENAI_CLOUD_API_KEY
-          execution_group: cloud_openai
-          enabled: false
+        # - name: gpt-5.4
+        #   backend: cloud
+        #   model: gpt-5.4
+        #   base_url:
+        #   api_key_env: OPENAI_CLOUD_API_KEY
+        #   execution_group: cloud_openai
+        #   enabled: true
 
         - name: gemini-3.1-flash-lite # 
           backend: cloud
@@ -107,57 +107,89 @@ models:
           execution_group: cloud_google
           enabled: true
         
-        - name: gemma4:31b-cloud
-          backend: local
-          model: gemma4:31b-cloud
-          execution_group: local_gpu_1
-          enabled: true
+        # - name: gemma4:31b-cloud
+        #   backend: local
+        #   model: gemma4:31b-cloud
+        #   execution_group: local_gpu_1
+        #   enabled: true
 
-        - name: mistral-large-3:675b-cloud # fast
-          backend: local
-          model: mistral-large-3:675b-cloud
-          execution_group: local_gpu_2
-          enabled: true
+        # - name: mistral-large-3:675b-cloud
+        #   backend: local
+        #   model: mistral-large-3:675b-cloud
+        #   execution_group: local_gpu_2
+        #   enabled: true
 
-        - name: deepseek-v4-flash-cloud # fast
-          backend: local
-          model: deepseek-v4-flash:cloud
-          execution_group: local_gpu_3
-          enabled: true
+        # - name: deepseek-v4-flash-cloud # fast
+        #   backend: local
+        #   model: deepseek-v4-flash:cloud
+        #   execution_group: local_gpu_3
+        #   enabled: true
+
+        # - name: deepseek-v4-flash:0731-cloud # fast ?
+        #   backend: local
+        #   model: deepseek-v4-flash:0731-cloud
+        #   execution_group: local_gpu_3
+        #   enabled: true
+
 
         # OpenAI-compatible cloud profiles for externally hosted models.
         # Endpoint/key settings are provider-specific.
         - name: claude-haiku-4.5
           backend: cloud
-          model: claude-haiku-4.5
+          model: claude-haiku-4-5
           base_url: https://api.anthropic.com/v1/
           api_key_env: ANTHROPIC_API_KEY
           execution_group: cloud_anthropic
-          enabled: false
+          enabled: true
 
-        - name: deepseek-v4-flash
-          backend: cloud
-          model: deepseek-v4-flash
-          base_url: https://api.deepseek.com
-          api_key_env: DEEPSEEK_API_KEY
-          execution_group: cloud_deepseek
-          enabled: false
-
-        # - name: qwen/qwen3.6-27b
+        # - name: deepseek-v4-flash # slow
         #   backend: cloud
-        #   model: qwen/qwen3.6-27b
-        #   base_url: https://openrouter.ai/api/v1
-        #   api_key_env: OPENROUTER_API_KEY
-        #   execution_group: cloud_openrouter
-        #   enabled: false
+        #   model: deepseek-v4-flash
+        #   base_url: https://api.deepseek.com
+        #   api_key_env: DEEPSEEK_API_KEY
+        #   execution_group: cloud_deepseek
+        #   enabled: true
 
-        - name: mistral-large-2512
+        # - name: mistral-large-2512 # slow
+        #   backend: cloud
+        #   model: mistral-large-2512
+        #   base_url: https://api.mistral.ai/v1
+        #   api_key_env: MISTRAL_API_KEY
+        #   execution_group: cloud_mistral
+        #   enabled: true
+
+        - name: mistral-small-2603
           backend: cloud
-          model: mistral-large-2512
+          model: mistral-small-2603
           base_url: https://api.mistral.ai/v1
           api_key_env: MISTRAL_API_KEY
           execution_group: cloud_mistral
-          enabled: false
+          enabled: true
+
+        # - name: ministral-8b-2512 # slow
+        #   backend: cloud
+        #   model: ministral-8b-2512
+        #   base_url: https://api.mistral.ai/v1
+        #   api_key_env: MISTRAL_API_KEY
+        #   execution_group: cloud_mistral
+        #   enabled: true
+
+        # - name: qwen3.6-flash
+        #   backend: cloud
+        #   model: qwen3.6-flash
+        #   base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+        #   api_key_env: QWEN_API_KEY
+        #   execution_group: cloud_qwen
+        #   enabled: true
+
+        - name: grok-4.20-0309-reasoning
+          backend: cloud
+          model: grok-4.20-0309-reasoning
+          base_url: https://api.x.ai/v1
+          api_key_env: XAI_API_KEY
+          execution_group: cloud_xai
+          enabled: true
+          
 
 
 thresholds:
