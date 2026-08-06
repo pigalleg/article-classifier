@@ -143,6 +143,37 @@ Outputs are written under:
 - `data/results/affinity_benchmark/<run_id>/<model_slug>/...`
 - `data/results/affinity_benchmark/<run_id>/benchmark_manifest.csv`
 
+### Run Benchmark Slices From a Manifest
+
+Use the manifest runner to execute multiple benchmark slices in sequence.
+
+Manifest schema (CSV header):
+- `run_id,enabled,year_start,year_end,journals,output_tag,notes`
+
+Example manifest already prepared for TPWRS by year (2020 to 2026):
+- `data/processed/manifest_tpwrs_2020_2026_by_year.csv`
+
+Dry run (print commands only):
+
+```bash
+python3 scripts/run_affinity_benchmark_parallel_manifest.py \
+  --manifest data/processed/manifest_tpwrs_2020_2026_by_year.csv \
+  --mode ra \
+  --dry-run
+```
+
+Execute all enabled rows:
+
+```bash
+python3 scripts/run_affinity_benchmark_parallel_manifest.py \
+  --manifest data/processed/manifest_tpwrs_2020_2026_by_year.csv \
+  --mode ra
+```
+
+Each enabled row forwards `year_start`, `year_end`, and `journals` to
+`scripts/run_affinity_benchmark_parallel.py`, which then forwards those flags
+to grouped child runs in `scripts/run_affinity_benchmark.py`.
+
 ### Run Parallel Benchmark Launcher
 
 Use the launcher when benchmark models are split into independent execution groups.
@@ -337,7 +368,7 @@ Output columns:
 
 ## Script Outputs
 
-<!-- - `prepare_data.py` -> `data/processed/abstracts_cleaned.csv`, `data/processed/ra_questions_cleaned.csv`, `data/processed/primary_programmes.csv` -->
+<!-- - `scripts/util/prepare_ra_and_ieee_data.py` -> `data/processed/abstracts_cleaned.csv`, `data/processed/ra_questions_cleaned.csv`, `data/processed/primary_programmes.csv` -->
 <!-- - `run_classification.py` -> `data/results/classified_articles_llm.xlsx`, `data/results/llm_mismatches.csv` -->
 - `run_affinity_evaluation.py --mode prp` -> `data/results/prp_affinities.csv`
 - `run_affinity_evaluation.py --mode ra` -> `data/results/ra_affinities.csv`, `data/results/combined_affinities.xlsx`
@@ -348,4 +379,4 @@ Output columns:
 
 <!-- - `run_keyword_clustering.py` also needs `scikit-learn`. -->
 - If an API backend is not configured, LLM-based scripts will fail before classification/affinity steps.
-- Deprecated: `prepare_data.py`, `run_classification.py`, `run_postprocessing.py`, `run_keyword_clustering.py`
+- Deprecated: `scripts/util/prepare_ra_and_ieee_data.py`, `run_classification.py`, `run_postprocessing.py`, `run_keyword_clustering.py`

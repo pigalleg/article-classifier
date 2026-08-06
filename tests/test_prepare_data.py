@@ -1,6 +1,6 @@
 import pandas as pd
 
-from scripts import prepare_data
+from scripts.util import prepare_ra_and_ieee_data
 
 
 def test_clean_ieee_abstracts_keeps_publication_year(tmp_path, monkeypatch):
@@ -21,10 +21,10 @@ def test_clean_ieee_abstracts_keeps_publication_year(tmp_path, monkeypatch):
         }
     ).to_csv(input_file, index=False)
 
-    monkeypatch.setattr(prepare_data, "RAW_DIR", str(raw_dir))
-    monkeypatch.setattr(prepare_data, "PROCESSED_DIR", str(processed_dir))
+    monkeypatch.setattr(prepare_ra_and_ieee_data, "RAW_DIR", str(raw_dir))
+    monkeypatch.setattr(prepare_ra_and_ieee_data, "PROCESSED_DIR", str(processed_dir))
 
-    prepare_data.clean_IEEE_abstracts([input_file])
+    prepare_ra_and_ieee_data.clean_IEEE_abstracts([input_file])
 
     output = pd.read_csv(processed_dir / "abstracts_cleaned.csv")
 

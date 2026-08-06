@@ -291,6 +291,13 @@ def parse_args(settings: dict[str, Any]) -> argparse.Namespace:
         ),
         help="Cleaned abstracts input file name or path used by evaluation and fallback PRP generation",
     )
+    parser.add_argument("--year-start", type=int, default=None, help="Inclusive lower bound for publication year filtering")
+    parser.add_argument("--year-end", type=int, default=None, help="Inclusive upper bound for publication year filtering")
+    parser.add_argument(
+        "--journals",
+        default=None,
+        help="Comma/semicolon separated list of journal values to keep (e.g., 'TPWRS;TPWRD')",
+    )
     parser.add_argument(
         "--enable-affinity-reasons",
         dest="enable_affinity_reasons",
@@ -342,6 +349,15 @@ def _append_reasoner_overrides(cmd: list[str], args: argparse.Namespace) -> None
         )
 
 
+def _append_subset_filters(cmd: list[str], args: argparse.Namespace) -> None:
+    if args.year_start is not None:
+        cmd.extend(["--year-start", str(args.year_start)])
+    if args.year_end is not None:
+        cmd.extend(["--year-end", str(args.year_end)])
+    if args.journals:
+        cmd.extend(["--journals", str(args.journals)])
+
+
 def _build_env(profile: ModelProfile, model_output_dir: Path) -> dict[str, str]:
     env = dict(os.environ)
     env["PYTHONBREAKPOINT"] = "0"
@@ -386,6 +402,16 @@ def main() -> None:
     # Record run metadata (git + settings) for reproducibility
     try:
         run_meta = get_run_metadata(repo_root=REPO_ROOT, settings_path=CFG_PATH)
+        run_meta["benchmark"] = {
+            "mode": args.mode,
+            "ra_retrieval_mode": args.ra_retrieval_mode,
+            "abstracts_file": args.abstracts_file,
+            "subset_filter": {
+                "year_start": args.year_start,
+                "year_end": args.year_end,
+                "journals": args.journals,
+            },
+        }
         write_run_metadata_file(run_dir / "run_metadata.json", run_meta)
     except Exception:
         run_meta = {"git": {"commit": None, "commit_short": None, "branch": None}}
@@ -448,6 +474,7 @@ def main() -> None:
                     args.prp_scope_fallback_mode,
                 ]
                 _append_reasoner_overrides(cmd, args)
+                _append_subset_filters(cmd, args)
                 _run_stage(cmd, env)
 
             if args.mode in {"ra", "both"}:
@@ -484,6 +511,7 @@ def main() -> None:
                 if args.prp_min_affinity is not None:
                     cmd.extend(["--prp-min-affinity", str(args.prp_min_affinity)])
                 _append_reasoner_overrides(cmd, args)
+                _append_subset_filters(cmd, args)
 
                 _run_stage(cmd, env)
 

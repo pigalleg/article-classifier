@@ -100,7 +100,6 @@ except ModuleNotFoundError:
 
 try:
     run_meta = get_run_metadata(repo_root=Path("."), settings_path=Path(CFG_PATH))
-    write_run_metadata_file(Path(RESULTS_DIR) / "run_metadata.json", run_meta)
 except Exception:
     run_meta = {"git": {"commit": None, "commit_short": None, "branch": None}}
 
@@ -247,7 +246,125 @@ def parse_args() -> argparse.Namespace:
             "Default: follow AFFINITY_ENABLE_FEW_SHOT env var, then settings.yaml."
         ),
     )
+    parser.add_argument(
+        "--year-start",
+        type=int,
+        default=None,
+        help="Inclusive lower bound for publication year filtering",
+    )
+    parser.add_argument(
+        "--year-end",
+        type=int,
+        default=None,
+        help="Inclusive upper bound for publication year filtering",
+    )
+    parser.add_argument(
+        "--journals",
+        default=None,
+        help="Comma/semicolon separated list of journal values to keep (e.g., 'TPWRS;TPWRD')",
+    )
     return parser.parse_args()
+
+
+def _split_delimited_values(raw: Optional[str]) -> list[str]:
+    if raw is None:
+        return []
+    text = str(raw).strip()
+    if not text:
+        return []
+    for separator in (";", ","):
+        text = text.replace(separator, "|")
+    return [part.strip() for part in text.split("|") if part.strip()]
+
+
+def _find_column_case_insensitive(df: pd.DataFrame, candidates: list[str]) -> Optional[str]:
+    if df.empty:
+        return None
+    norm_to_actual: dict[str, str] = {
+        str(col).strip().lower(): str(col) for col in df.columns
+    }
+    for candidate in candidates:
+        key = str(candidate).strip().lower()
+        if key in norm_to_actual:
+            return norm_to_actual[key]
+    return None
+
+
+def _apply_subset_filters(abstracts: pd.DataFrame, args: argparse.Namespace) -> tuple[pd.DataFrame, dict[str, Any]]:
+    year_requested = args.year_start is not None or args.year_end is not None
+    journals_requested = _split_delimited_values(args.journals)
+
+    metadata: dict[str, Any] = {
+        "year_start": args.year_start,
+        "year_end": args.year_end,
+        "journals": journals_requested,
+        "year_column": None,
+        "journal_column": None,
+    }
+
+    filtered = abstracts.copy()
+
+    if year_requested:
+        year_col = _find_column_case_insensitive(
+            filtered,
+            ["publication_year", "publication year", "year"],
+        )
+        if year_col is None:
+            raise ValueError(
+                "Year filtering requested but no year column found. "
+                "Expected one of: publication_year, publication year, year"
+            )
+
+        year_values = pd.to_numeric(filtered[year_col], errors="coerce")
+        year_min = float(args.year_start) if args.year_start is not None else float("-inf")
+        year_max = float(args.year_end) if args.year_end is not None else float("inf")
+        filtered = filtered[year_values.notna() & year_values.between(year_min, year_max)].copy()
+        metadata["year_column"] = year_col
+
+    if journals_requested:
+        journal_col = _find_column_case_insensitive(
+            filtered,
+            ["publication_journal", "publication journal", "journal", "publication_title", "publication title"],
+        )
+        if journal_col is None:
+            raise ValueError(
+                "Journal filtering requested but no journal column found. "
+                "Expected one of: publication_journal, publication journal, journal, publication_title"
+            )
+
+        requested_norm = {j.strip().upper() for j in journals_requested if j.strip()}
+        journal_norm = filtered[journal_col].astype(str).str.strip().str.upper()
+        filtered = filtered[journal_norm.isin(requested_norm)].copy()
+        metadata["journal_column"] = journal_col
+
+    return filtered, metadata
+
+
+def _write_evaluation_metadata(
+    args: argparse.Namespace,
+    loaded_rows: int,
+    unclassified_rows: int,
+    filtered_rows: int,
+    filter_meta: dict[str, Any],
+) -> None:
+    merged_meta = dict(run_meta)
+    merged_meta["affinity_evaluation"] = {
+        "mode": args.mode,
+        "ra_retrieval_mode": args.ra_retrieval_mode,
+        "abstracts_file": ABSTRACTS_FILE,
+        "results_dir": RESULTS_DIR,
+        "subset_filter": {
+            "year_start": filter_meta.get("year_start"),
+            "year_end": filter_meta.get("year_end"),
+            "journals": filter_meta.get("journals", []),
+            "year_column": filter_meta.get("year_column"),
+            "journal_column": filter_meta.get("journal_column"),
+            "loaded_rows": int(loaded_rows),
+            "rows_after_already_classified_filter": int(unclassified_rows),
+            "rows_after_subset_filter": int(filtered_rows),
+        },
+    }
+    write_run_metadata_file(Path(RESULTS_DIR) / "run_metadata.json", merged_meta)
 
 
 def _get_general_prp_description(prp: pd.DataFrame, prp_name_col: str, prp_desc_col: str | None) -> str:
@@ -608,6 +725,31 @@ def main():
     timing_logger = AffinityTimingLogger.from_results_dir(RESULTS_DIR)
 
     abstracts, ra, prp, prp_name_col, prp_desc_col = load_inputs()
+    loaded_rows = len(abstracts)
+    abstracts = _filter_unclassified_abstracts(abstracts)
+    unclassified_rows = len(abstracts)
+    abstracts, filter_meta = _apply_subset_filters(abstracts, args)
+    filtered_rows = len(abstracts)
+
+    _write_evaluation_metadata(
+        args=args,
+        loaded_rows=loaded_rows,
+        unclassified_rows=unclassified_rows,
+        filtered_rows=filtered_rows,
+        filter_meta=filter_meta,
+    )
+
+    if filtered_rows == 0:
+        raise ValueError(
+            "Subset filters produced zero abstracts. "
+            "Adjust --year-start/--year-end/--journals or input data."
+        )
+
+    print(
+        "Abstract filtering summary: "
+        f"loaded={loaded_rows}, after_already_classified={unclassified_rows}, after_subset={filtered_rows}"
+    )
+
     _, classifier, reasoner = init_models(
         ra,
         enable_few_shot=args.enable_few_shot,
@@ -634,8 +776,6 @@ def main():
     prp_output_tokens = 0
     prp_total_tokens = 0
 
-    # filter out already classified abstracts
-    abstracts = _filter_unclassified_abstracts(abstracts)
     n = len(abstracts)
     _save_abstract_lookup_file(abstracts, ABSTRACT_LOOKUP_DIR)
     titles = abstracts["Document Title"] if "Document Title" in abstracts.columns else pd.Series([f"doc_{i}" for i in range(n)])
