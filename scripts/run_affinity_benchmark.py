@@ -44,6 +44,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 CFG_PATH = REPO_ROOT / "src" / "config" / "settings.yaml"
+POSTPROCESSING_SKIP_ENV = "AFFINITY_SKIP_POSTPROCESSING"
 
 try:
     from scripts.util.ollama_gpu import _describe_ollama_gpu_state
@@ -338,6 +339,18 @@ def _run_stage(cmd: list[str], env: dict[str, str]) -> None:
     subprocess.run(cmd, cwd=str(REPO_ROOT), env=env, check=True)
 
 
+def _run_postprocessing(run_dir: Path) -> None:
+    command = [
+        sys.executable,
+        str(REPO_ROOT / "scripts" / "run_postprocessing_affinity_benchmark.py"),
+        "--input-root",
+        str(run_dir.parent),
+        "--run-id",
+        run_dir.name,
+    ]
+    _run_stage(command, dict(os.environ))
+
+
 def _append_reasoner_overrides(cmd: list[str], args: argparse.Namespace) -> None:
     if args.enable_few_shot is not None:
         cmd.append("--enable-few-shot" if args.enable_few_shot else "--no-enable-few-shot")
@@ -532,6 +545,8 @@ def main() -> None:
         print(f"[{row['status'].upper()}] {profile.name} -> {model_dir}")
 
     print(f"Saved benchmark manifest -> {manifest_path}")
+    if not _as_bool(os.getenv(POSTPROCESSING_SKIP_ENV)):
+        _run_postprocessing(run_dir)
 
 
 if __name__ == "__main__":

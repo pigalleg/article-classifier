@@ -1,7 +1,44 @@
 from pathlib import Path
 
-from scripts.run_affinity_benchmark import ModelProfile, _build_env
+from scripts.run_affinity_benchmark import ModelProfile, _build_env, _run_postprocessing
 from scripts.run_affinity_benchmark import _resolve_profiles
+from scripts.run_affinity_benchmark_parallel import LaunchGroup, LauncherModel, _run_group
+
+
+def test_run_postprocessing_targets_the_completed_benchmark_run(monkeypatch, tmp_path):
+    calls = []
+
+    def record_call(command, cwd, env, check):
+        calls.append((command, cwd, env, check))
+
+    monkeypatch.setattr("scripts.run_affinity_benchmark.subprocess.run", record_call)
+    run_dir = tmp_path / "affinity_benchmark" / "run-123"
+
+    _run_postprocessing(run_dir)
+
+    command, _, _, check = calls[0]
+    assert command[-4:] == ["--input-root", str(run_dir.parent), "--run-id", "run-123"]
+    assert command[1].endswith("scripts/run_postprocessing_affinity_benchmark.py")
+    assert check is True
+
+
+def test_parallel_child_defers_postprocessing_to_parent(monkeypatch):
+    calls = []
+
+    def record_call(command, cwd, env, check):
+        calls.append((command, cwd, env, check))
+
+    monkeypatch.setattr("scripts.run_affinity_benchmark_parallel.subprocess.run", record_call)
+    group = LaunchGroup(
+        name="cloud",
+        backend="cloud",
+        dir_name="cloud-cloud",
+        models=(LauncherModel(name="model-a", backend="cloud", execution_group="cloud"),),
+    )
+
+    _run_group(group, "staging", [], False, None, "shared-lookup")
+
+    assert calls[0][2]["AFFINITY_SKIP_POSTPROCESSING"] == "true"
 
 
 def test_build_env_exports_model_specific_api_key_env_and_generic_key():

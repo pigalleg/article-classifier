@@ -1,8 +1,8 @@
 run_id,enabled,year_start,year_end,journals,output_tag,notes
-tpwrs_2020,false,2020,2020,TPWRS,tpwrs_2020,TPWRS subset for 2020
-tpwrs_2021,false,2021,2021,TPWRS,tpwrs_2021,TPWRS subset for 2021
-tpwrs_2022,false,2022,2022,TPWRS,tpwrs_2022,TPWRS subset for 2022
-tpwrs_2023,false,2023,2023,TPWRS,tpwrs_2023,TPWRS subset for 2023
-tpwrs_2024,false,2024,2024,TPWRS,tpwrs_2024,TPWRS subset for 2024
-tpwrs_2025,false,2025,2025,TPWRS,tpwrs_2025,TPWRS subset for 2025
+tpwrs_2020,true,2020,2020,TPWRS,tpwrs_2020,TPWRS subset for 2020
+tpwrs_2021,true,2021,2021,TPWRS,tpwrs_2021,TPWRS subset for 2021
+tpwrs_2022,true,2022,2022,TPWRS,tpwrs_2022,TPWRS subset for 2022
+tpwrs_2023,true,2023,2023,TPWRS,tpwrs_2023,TPWRS subset for 2023
+tpwrs_2024,true,2024,2024,TPWRS,tpwrs_2024,TPWRS subset for 2024
+tpwrs_2025,true,2025,2025,TPWRS,tpwrs_2025,TPWRS subset for 2025
 tpwrs_2026,true,2026,2026,TPWRS,tpwrs_2026,TPWRS subset for 2026

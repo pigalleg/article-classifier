@@ -372,11 +372,11 @@ Output columns:
 <!-- - `run_classification.py` -> `data/results/classified_articles_llm.xlsx`, `data/results/llm_mismatches.csv` -->
 - `run_affinity_evaluation.py --mode prp` -> `data/results/prp_affinities.csv`
 - `run_affinity_evaluation.py --mode ra` -> `data/results/ra_affinities.csv`, `data/results/combined_affinities.xlsx`
-<!-- - `run_postprocessing.py` -> analysis artifacts in `outputs/` -->
+<!-- - `run_postprocessing_affinity_benchmark.py` -> analysis artifacts in `outputs/` -->
 <!-- - `run_keyword_clustering.py` -> `data/processed/keyword_clusters.csv` -->
 
 ## Notes
 
 <!-- - `run_keyword_clustering.py` also needs `scikit-learn`. -->
 - If an API backend is not configured, LLM-based scripts will fail before classification/affinity steps.
-- Deprecated: `scripts/util/prepare_ra_and_ieee_data.py`, `run_classification.py`, `run_postprocessing.py`, `run_keyword_clustering.py`
+- Deprecated: `scripts/util/prepare_ra_and_ieee_data.py`, `run_classification.py`, `run_postprocessing_affinity_benchmark.py`, `run_keyword_clustering.py`

@@ -98,7 +98,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.run_affinity_benchmark import _as_bool, _load_settings, _slugify
+from scripts.run_affinity_benchmark import (
+    POSTPROCESSING_SKIP_ENV,
+    _as_bool,
+    _load_settings,
+    _run_postprocessing,
+    _slugify,
+)
 
 
 DEFAULT_OUTPUT_ROOT = "data/results/affinity_benchmark"
@@ -240,6 +246,7 @@ def _run_group(
     env["AFFINITY_BENCHMARK_MODELS"] = ",".join(model.name for model in group.models)
     env["AFFINITY_BENCHMARK_BACKEND"] = group.backend
     env["AFFINITY_ABSTRACT_LOOKUP_DIR"] = shared_lookup_dir
+    env[POSTPROCESSING_SKIP_ENV] = "true"
 
     child_args = list(forwarded_args)
     if child_dry_run and "--dry-run" not in child_args:
@@ -332,6 +339,8 @@ def main() -> None:
 
     if failures:
         raise RuntimeError(f"{len(failures)} parallel benchmark group(s) failed")
+
+    _run_postprocessing(outer_run_root)
 
 
 if __name__ == "__main__":
