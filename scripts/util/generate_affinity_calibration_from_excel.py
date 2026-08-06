@@ -31,7 +31,7 @@ from scripts.run_affinity_adjudication import affinity_level_fixed
 
 DEFAULT_INPUT_FILE = Path("Abstracts Evaluation Template - Mark OM.xlsm")
 DEFAULT_SHEET_NAME = None
-DEFAULT_OUTPUT_ROOT = REPO_ROOT / "data" / "results" / "affinity_calibration"
+DEFAULT_OUTPUT_ROOT = REPO_ROOT / "data" / "processed" / "affinity_calibration"
 DEFAULT_OUTPUT_FILE = "calibration_abstract_question_affinities.csv"
 DEFAULT_RUN_SUFFIX = "v1"
 

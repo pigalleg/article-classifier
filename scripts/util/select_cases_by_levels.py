@@ -3,7 +3,7 @@
 
 Usage examples:
   python scripts/select_cases_by_levels.py \
-    --calib-dir data/results/affinity_calibration/20260618_Mark_batch1_v2 \
+        --calib-dir data/processed/affinity_calibration/20260618_Mark_batch1_v2 \
   --adjud-file data/results/affinity_benchmark/20260422_212121_1 \
   --adjud-file data/results/affinity_benchmark/20260422_212121_3 \
   --adjud-file data/results/affinity_benchmark/20260422_212121_4 \

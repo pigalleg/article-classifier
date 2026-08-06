@@ -21,7 +21,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.run_affinity_adjudication import affinity_level_fixed
 
 DEFAULT_INPUT_ROOT = REPO_ROOT / "data" / "results" / "affinity_benchmark"
-DEFAULT_OUTPUT_ROOT = REPO_ROOT / "data" / "results" / "affinity_calibration"
+DEFAULT_OUTPUT_ROOT = REPO_ROOT / "data" / "processed" / "affinity_calibration"
 DEFAULT_RUN_IDS = ["20260422_212121_1", "20260422_212121_2", "20260422_212121_3"]
 DEFAULT_OUTPUT_RUN_ID = "20260601_dummy_100_abstracts_v3"
 
