@@ -119,11 +119,11 @@ models:
         #   execution_group: local_gpu_2
         #   enabled: true
 
-        # - name: deepseek-v4-flash-cloud # fast
-        #   backend: local
-        #   model: deepseek-v4-flash:cloud
-        #   execution_group: local_gpu_3
-        #   enabled: true
+        - name: deepseek-v4-flash-cloud # fast
+          backend: local
+          model: deepseek-v4-flash:cloud
+          execution_group: local_gpu_3
+          enabled: true
 
         # - name: deepseek-v4-flash:0731-cloud # fast ?
         #   backend: local
@@ -182,13 +182,13 @@ models:
         #   execution_group: cloud_qwen
         #   enabled: true
 
-        - name: grok-4.20-0309-reasoning
-          backend: cloud
-          model: grok-4.20-0309-reasoning
-          base_url: https://api.x.ai/v1
-          api_key_env: XAI_API_KEY
-          execution_group: cloud_xai
-          enabled: true
+        # - name: grok-4.20-0309-reasoning
+        #   backend: cloud
+        #   model: grok-4.20-0309-reasoning
+        #   base_url: https://api.x.ai/v1
+        #   api_key_env: XAI_API_KEY
+        #   execution_group: cloud_xai
+        #   enabled: true
           
 
 
