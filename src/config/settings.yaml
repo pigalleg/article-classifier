@@ -107,11 +107,11 @@ models:
           execution_group: cloud_google
           enabled: true
         
-        # - name: gemma4:31b-cloud
-        #   backend: local
-        #   model: gemma4:31b-cloud
-        #   execution_group: local_gpu_1
-        #   enabled: true
+        - name: gemma4:31b-cloud
+          backend: local
+          model: gemma4:31b-cloud
+          execution_group: local_gpu_1
+          enabled: true
 
         # - name: mistral-large-3:675b-cloud
         #   backend: local
@@ -164,7 +164,7 @@ models:
           base_url: https://api.mistral.ai/v1
           api_key_env: MISTRAL_API_KEY
           execution_group: cloud_mistral
-          enabled: true
+          enabled: false
 
         # - name: ministral-8b-2512 # slow
         #   backend: cloud
