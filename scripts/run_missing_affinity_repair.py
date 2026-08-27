@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.run_affinity_benchmark import _load_settings, _resolve_profiles
+from scripts.run_affinity_benchmark import _load_settings, _resolve_profiles, _slugify
 from src.models.llm_affinity_reasoner import LLMAffinityReasoner
 
 
@@ -131,7 +131,7 @@ def repair_missing_ra_affinities(
 def _resolve_profile(model_slug: str) -> Any:
     profiles, _ = _resolve_profiles(_load_settings(CFG_PATH))
     for profile in profiles:
-        if profile.name == model_slug:
+        if profile.name == model_slug or _slugify(profile.name) == model_slug:
             return profile
     raise ValueError(f"No enabled benchmark profile named {model_slug!r} in {CFG_PATH}")
 

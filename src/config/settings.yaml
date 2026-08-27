@@ -17,6 +17,8 @@ runtime:
     prp_membership_confidence_min: 10
     prp_scope_fallback_mode: legacy_scores # The abstract is scored against all PRPs (including General), and no out-of-scope zeroing rule is applied for that abstract.
     affinity_debug: false
+    prp_assignment:
+      relative_margin: 120
     adjudication:
       mode: ra  # 'both', 'prp', or 'ra'
       input_root: data/results/affinity_benchmark
@@ -26,8 +28,8 @@ runtime:
       prp_output_model_rows_file: adjudicated_prp_model_rows.csv
       ra_output_file: adjudicated_ra_affinities.csv
       ra_output_model_rows_file: adjudicated_ra_model_rows.csv
-      min_agreement: 1.0
-      min_agreement_mean: 1.0
+      min_agreement: 0.0
+      min_agreement_mean: 0.0
       first_n_abstracts: null
   llm_reasoner:
     temperature: 0.1
@@ -107,7 +109,7 @@ models:
           execution_group: cloud_google
           enabled: true
         
-        - name: gemma4:31b-cloud
+        - name: gemma4-31b-cloud
           backend: local
           model: gemma4:31b-cloud
           execution_group: local_gpu_1

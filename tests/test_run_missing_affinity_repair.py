@@ -1,5 +1,6 @@
 import pandas as pd
 
+import scripts.run_missing_affinity_repair as repair_module
 from scripts.run_missing_affinity_repair import repair_missing_ra_affinities
 
 
@@ -10,6 +11,14 @@ class _FakeReasoner:
     def rate_affinity_batch(self, abstract, targets, target_type):
         self.calls.append((abstract, targets, target_type))
         return {"10": {"score": 72, "reason": "retry score"}}
+
+
+def test_resolve_profile_accepts_benchmark_directory_slug(monkeypatch):
+    profile = type("Profile", (), {"name": "gemma4:31b-cloud"})()
+    monkeypatch.setattr(repair_module, "_load_settings", lambda _: {})
+    monkeypatch.setattr(repair_module, "_resolve_profiles", lambda _: ([profile], None))
+
+    assert repair_module._resolve_profile("gemma4-31b-cloud") is profile
 
 
 def test_repair_missing_ra_affinities_updates_only_valid_retry_scores():

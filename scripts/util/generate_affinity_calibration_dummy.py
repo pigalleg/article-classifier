@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
-from scripts.run_affinity_adjudication import affinity_level_fixed
+from src.analysis.affinity_levels import affinity_level_fixed
 
 DEFAULT_INPUT_ROOT = REPO_ROOT / "data" / "results" / "affinity_benchmark"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "data" / "processed" / "affinity_calibration"

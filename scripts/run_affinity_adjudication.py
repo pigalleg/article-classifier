@@ -26,6 +26,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.analysis.affinity_levels import (
+    affinity_level_fixed as _canonical_affinity_level_fixed,
+)
+
 CFG_PATH = REPO_ROOT / "src" / "config" / "settings.yaml"
 DEFAULT_INPUT_ROOT = REPO_ROOT / "data" / "results" / "affinity_benchmark"
 
@@ -209,20 +213,7 @@ def _load_runtime_llm_config(settings: dict[str, Any]) -> tuple[str, int, Option
     return str(effective_model), effective_rpm, effective_base_url, effective_api_key
 
 def _affinity_level_fixed(score):
-        if pd.isna(score):
-            return pd.NA
-        try:
-            x = float(score)
-        except Exception:
-            return pd.NA
-        # Treat 0 as explicit 'no relevance' (map to NA for level labelling)
-        if 0 <= x < 40:
-            return 'Low'
-        if 40 <= x < 80:
-            return 'Moderate'
-        if 80 <= x:
-            return 'High'
-        return pd.NA
+    return _canonical_affinity_level_fixed(score)
 
 def _compute_pair_stats(merged_df: pd.DataFrame, target_id_col: str, target_text_col: str) -> pd.DataFrame:
     base_cols = [
@@ -284,7 +275,7 @@ def compute_pair_stats(merged_df: pd.DataFrame, target_id_col: str, target_text_
     return _compute_pair_stats(merged_df, target_id_col=target_id_col, target_text_col=target_text_col)
 
 def affinity_level_fixed(score):
-    return _affinity_level_fixed(score)
+    return _canonical_affinity_level_fixed(score)
 
 
 def _select_divergent_pairs(
