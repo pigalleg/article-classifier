@@ -91,7 +91,7 @@ models:
           base_url:
           api_key_env: OPENAI_CLOUD_API_KEY
           execution_group: cloud_openai
-          enabled: true
+          enabled: false
 
         # - name: gpt-5.4
         #   backend: cloud
@@ -107,13 +107,34 @@ models:
           base_url: https://generativelanguage.googleapis.com/v1beta/openai
           api_key_env: GOOGLE_API_KEY
           execution_group: cloud_google
+          enabled: false
+
+        - name: gemini-3.7-flash # 
+          backend: cloud
+          model: gemini-3.7-flash
+          base_url: https://generativelanguage.googleapis.com/v1beta/openai
+          api_key_env: GOOGLE_API_KEY
+          execution_group: cloud_google
           enabled: true
         
         - name: gemma4-31b-cloud
           backend: local
           model: gemma4:31b-cloud
           execution_group: local_gpu_1
+          enabled: false
+
+        - name: glm-5.3-flash:cloud
+          backend: local
+          model: glm-5.3-flash:cloud
+          execution_group: local_gpu_1
           enabled: true
+        
+        - name: kimi-k3:cloud
+          backend: local
+          model: kimi-k3:cloud
+          execution_group: local_gpu_1
+          enabled: true
+        
 
         # - name: mistral-large-3:675b-cloud
         #   backend: local
@@ -125,7 +146,7 @@ models:
           backend: local
           model: deepseek-v4-flash:cloud
           execution_group: local_gpu_3
-          enabled: true
+          enabled: false
 
         # - name: deepseek-v4-flash:0731-cloud # fast ?
         #   backend: local
@@ -142,7 +163,7 @@ models:
           base_url: https://api.anthropic.com/v1/
           api_key_env: ANTHROPIC_API_KEY
           execution_group: cloud_anthropic
-          enabled: true
+          enabled: false
 
         # - name: deepseek-v4-flash # slow
         #   backend: cloud
@@ -160,13 +181,13 @@ models:
         #   execution_group: cloud_mistral
         #   enabled: true
 
-        - name: mistral-small-2603
-          backend: cloud
-          model: mistral-small-2603
-          base_url: https://api.mistral.ai/v1
-          api_key_env: MISTRAL_API_KEY
-          execution_group: cloud_mistral
-          enabled: false
+        # - name: mistral-small-2603
+        #   backend: cloud
+        #   model: mistral-small-2603
+        #   base_url: https://api.mistral.ai/v1
+        #   api_key_env: MISTRAL_API_KEY
+        #   execution_group: cloud_mistral
+        #   enabled: false
 
         # - name: ministral-8b-2512 # slow
         #   backend: cloud
