@@ -1,49 +1,49 @@
-Grouping,Subgrouping,RA2025
-IBR,Power system evolution with high IBR shares,1
-IBR,Power system evolution with high IBR shares,2
-IBR,Power system evolution with high IBR shares,3
-IBR,IBR design standards and capabilities,4
-IBR,IBR design standards and capabilities,5
-IBR,IBR design standards and capabilities,6
-Stability,Tools for real-time operation of IBR dominated systems,7
-Stability,Methods for planning and operation of low-inertia systems,8
-Stability,Methods for planning and operation of low-inertia systems,9
-Stability,Methods for planning and operation of low-inertia systems,10
-Stability,Methods for planning and operation of low-inertia systems,11
-DER,Bulk system services,12
-DER,Bulk system services,13
-DER,Bulk system services,14
-DER,"DER Aggregation, measurement & control",15
-DER,"DER Aggregation, measurement & control",16
-DER,Data and control architecture,17
-DER,Data and control architecture,18
-CROF,Flexibility assessment,19
-CROF,Flexibility assessment,20
-CROF,Flexibility assessment,21
-CROF,Data and digital architecture,22
-CROF,Data and digital architecture,23
-CROF,Security assessment,24
-CROF,Security assessment,25
-CROF,Visualization,26
-CROF,Forecasting,27
-System Services,System Services,28
-System Services,System Services,29
-System Services,System Services,30
-System Services,System Services,31
-System Services,Services design,32
-System Services,Services design,33
-System Services,Services design,34
-System Services,Services design,35
-System Services,Services design,36
-Planning,Resource Adequacy,37
-Planning,Resource Adequacy,38
-Planning,Resource Adequacy,39
-Planning,Resource Adequacy,40
-Planning,Planning under uncertainty,41
-Planning,Planning under uncertainty,42
-Planning,Planning under uncertainty,43
-Planning,Planning under uncertainty,44
-Planning,Planning under uncertainty,45
-Planning,Extreme events,46
-Planning,Extreme events,47
-Planning,Extreme events,48
+Grouping,Subgrouping,RA2025,Subgrouping_2
+IBR,Power system evolution with high IBR shares,1,IBR
+IBR,Power system evolution with high IBR shares,2,IBR
+IBR,Power system evolution with high IBR shares,3,IBR
+IBR,IBR design standards and capabilities,4,IBR
+IBR,IBR design standards and capabilities,5,IBR
+IBR,IBR design standards and capabilities,6,IBR
+Stability,Tools for real-time operation of IBR dominated systems,7,Stability
+Stability,Methods for planning and operation of low-inertia systems,8,Stability
+Stability,Methods for planning and operation of low-inertia systems,9,Stability
+Stability,Methods for planning and operation of low-inertia systems,10,Stability
+Stability,Methods for planning and operation of low-inertia systems,11,Stability
+DER,Bulk system services,12,DER Services
+DER,Bulk system services,13,DER Services
+DER,Bulk system services,14,DER Services
+DER,"DER Aggregation, measurement & control",15,DER C&C
+DER,"DER Aggregation, measurement & control",16,DER C&C
+DER,Data and control architecture,17,DER C&C
+DER,Data and control architecture,18,DER C&C
+CROF,Flexibility assessment,19,CROF Flexibility
+CROF,Flexibility assessment,20,CROF Flexibility
+CROF,Flexibility assessment,21,CROF Flexibility
+CROF,Data and digital architecture,22,CROF Data
+CROF,Data and digital architecture,23,CROF Data
+CROF,Security assessment,24,CROF Assesment & Forecast
+CROF,Security assessment,25,CROF Assesment & Forecast
+CROF,Visualization,26,CROF Assesment & Forecast
+CROF,Forecasting,27,CROF Assesment & Forecast
+System Services,System Services,28,System Services
+System Services,System Services,29,System Services
+System Services,System Services,30,System Services
+System Services,System Services,31,System Services
+System Services,Services design,32,System Services
+System Services,Services design,33,System Services
+System Services,Services design,34,System Services
+System Services,Services design,35,System Services
+System Services,Services design,36,System Services
+Planning,Resource Adequacy,37,Planning
+Planning,Resource Adequacy,38,Planning
+Planning,Resource Adequacy,39,Planning
+Planning,Resource Adequacy,40,Planning
+Planning,Planning under uncertainty,41,Planning
+Planning,Planning under uncertainty,42,Planning
+Planning,Planning under uncertainty,43,Planning
+Planning,Planning under uncertainty,44,Planning
+Planning,Planning under uncertainty,45,Planning
+Planning,Extreme events,46,Planning
+Planning,Extreme events,47,Planning
+Planning,Extreme events,48,Planning

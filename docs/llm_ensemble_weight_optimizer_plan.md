@@ -155,7 +155,8 @@ The first version reports only fold weights and out-of-fold performance. A later
 
 - `fold_weights.csv`: per-fold model weights, train/test sizes, objective value, solver status.
 - `out_of_fold_predictions.csv`: pair IDs, expert score, fold, LLM scores, weighted score, and fixed-band levels.
-- `metrics_summary.csv`: weighted MAE, ordinary MAE, mean signed error, exact three-level accuracy, recall, QWK, and equal-weight baseline.
+- `metrics_summary.csv`: pooled out-of-fold weighted MAE, ordinary MAE, mean signed error, exact three-level accuracy, recall, QWK, and equal-weight baseline.
+- `fold_metrics_summary.csv`: the corresponding held-out metric values for every fold plus an unweighted `Average` row across folds.
 - `run_metadata.toml`: CLI values, input paths/run IDs, models, retained/dropped rows, objective settings, package versions, and solver status.
 
 Use existing fixed levels: Low `<= 40`, Moderate `40 < score <= 80`, High `> 80`.
