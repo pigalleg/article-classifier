@@ -13,6 +13,7 @@ from scripts.run_k_fold_optimizer_sweep import (
     run_sweep,
     select_best_run,
     validate_fold_range,
+    validate_solver,
     write_selection,
 )
 from scripts.util.aggregate_k_fold_optimizer_sweep import write_comparison_workbook
@@ -28,7 +29,12 @@ def _write_child_run(path: Path, fold_count: int, qwk: float) -> None:
             {"Level": ["High"], "Optimized_Precision": [0.7]}
         ).to_excel(writer, sheet_name="Per-Level Metrics", index=False)
         pd.DataFrame(
-            {"Grouping": ["Planning"], "Model_Slug": ["model-a"], "Mean_Weight": [1.0]}
+            {
+                "Grouping": ["Planning"],
+                "Model_Slug": ["model-a"],
+                "Fold_Count": [fold_count],
+                "Mean_Weight": [1.0],
+            }
         ).to_excel(writer, sheet_name="Fold Weight Ranges", index=False)
     pd.DataFrame({"Grouping": ["Planning"], "Model_Slug": ["model-a"], "Weight": [1.0]}).to_csv(
         path / "final_weights.csv", index=False
@@ -56,6 +62,7 @@ def test_child_command_forces_fit_all_and_forwards_configuration(tmp_path: Path)
         low_multiplier=1.0,
         moderate_multiplier=2.0,
         high_multiplier=3.0,
+        solver="exact",
     )
 
     command = child_command(args, 4, tmp_path / "k4")
@@ -65,6 +72,44 @@ def test_child_command_forces_fit_all_and_forwards_configuration(tmp_path: Path)
     assert "--fit-all" in command
     assert command[command.index("--weight-scope") + 1] == "programme"
     assert command[command.index("--high-multiplier") + 1] == "3.0"
+    assert command[command.index("--solver") + 1] == "exact"
+    assert "--learning-rate" not in command
+
+
+def test_child_command_forwards_gradient_hyperparameters(tmp_path: Path) -> None:
+    args = Namespace(
+        expert_run="expert",
+        benchmark_run="benchmark",
+        objective="soft_qwk",
+        weight_scope="programme",
+        calibration_scope="none",
+        low_multiplier=1.0,
+        moderate_multiplier=1.0,
+        high_multiplier=1.0,
+        solver="gradient",
+        learning_rate=0.02,
+        max_iterations=3000,
+        patience=100,
+        tolerance=1e-9,
+        level_temperature=4.0,
+        restarts=3,
+    )
+
+    command = child_command(args, 4, tmp_path / "k4")
+
+    assert command[command.index("--objective") + 1] == "soft_qwk"
+    assert command[command.index("--solver") + 1] == "gradient"
+    assert command[command.index("--learning-rate") + 1] == "0.02"
+    assert command[command.index("--level-temperature") + 1] == "4.0"
+    assert command[command.index("--restarts") + 1] == "3"
+    assert expected_metadata(args, 4)["restart_count"] == 3
+
+
+def test_soft_kappa_objective_requires_the_gradient_solver() -> None:
+    with pytest.raises(ValueError, match="requires --solver gradient"):
+        validate_solver("soft_qwk", "exact")
+    validate_solver("soft_qwk", "gradient")
+    validate_solver("weighted_mae", "exact")
 
 
 def test_selects_highest_oof_qwk_then_lowest_k_and_aggregates_reports_only(tmp_path: Path) -> None:
@@ -82,6 +127,7 @@ def test_selects_highest_oof_qwk_then_lowest_k_and_aggregates_reports_only(tmp_p
         tmp_path / "k3" / "final_weights.csv"
     ).read_text(encoding="ascii")
     assert pd.read_excel(workbook_path, sheet_name="Overall Metrics by K")["Fold_Count"].tolist() == [3, 4, 5]
+    assert pd.read_excel(workbook_path, sheet_name="Fold Weight Stability by K")["Fold_Count"].tolist() == [3, 4, 5]
     selection = pd.read_excel(workbook_path, sheet_name="Selection")
     assert selection.loc[0, "selected_fold_count"] == 3
     assert selection.loc[0, "selection_scope"] == "pooled_out_of_fold_optimized"
@@ -101,6 +147,7 @@ def test_run_sweep_creates_layout_and_resumes_compatible_children(
         low_multiplier=1.0,
         moderate_multiplier=2.0,
         high_multiplier=2.0,
+        solver="exact",
         output_root=tmp_path,
         output_dir=tmp_path / "sweep",
         resume=False,

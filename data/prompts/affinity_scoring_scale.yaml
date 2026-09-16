@@ -21,6 +21,29 @@ targets:
       ∎ 80-100: Direct relevance. The abstract addresses the same question, phenomenon, and outcome. Minor differences in methodology, setting, or scope exist but do not prevent the findings from being directly applicable. A reader would cite this abstract as substantive evidence for answering the question.
 
       ∎ 100-120: Near-perfect match. The abstract is a primary source for the question. It addresses the same research question, phenomenon, outcome, and context. Its findings can be applied directly, without adaptation, to answer the question. A reader would cite this abstract as primary evidence.
+    3: >-
+      Score the abstract’s relevance to the research question from 0–120.
+
+      First state, in one phrase, what this abstract actually delivers — the specific contribution it claims to make. Then judge how far that contribution answers this question. Shared subject matter is not relevance: an abstract can study the same technology, phenomenon or system as the question and still answer no part of it.
+
+      Most pairs score 0–20. A research paper typically answers at most one or two of the questions put to it, and often none. Declining to award a score is the normal outcome, not a failure to find a connection.
+
+      Low
+      ∎ 0-20: Does not answer the question. Use this band whenever you cannot state a single sentence of the form “this abstract shows X, which answers the question because Y”. It covers the most common case: the abstract shares the question’s topic but delivers something the question did not ask for — the question asks which services should be designed and the abstract proposes one control method; the question asks what metrics are required and the abstract reports a faster algorithm; the question asks how operators should value a capability and the abstract merely demonstrates that capability. Shared vocabulary, adjacent motivation and common application domain all score here.
+
+      ∎ 20-40: Rare — expect roughly one pair in two hundred. The abstract answers one strict sub-part of a multi-part question and is silent on every other part.
+
+      Moderate
+      ∎ 40-60: Contextual. The contribution informs the question’s premise or supplies background a reader would cite when framing the question, but does not answer it. A reader would cite this to set the question up, not to settle any part of it.
+
+      ∎ 60-80: Partial evidence. The contribution does answer the question, but for a narrower case than the question asks — one technology where the question is technology-neutral, one system or market where the question is general, or simulation where the question implies operational practice. The finding transfers only with stated caveats.
+
+      High
+      ∎ 80-100: Direct. Answering this question is the abstract’s central contribution, matched in both scope and kind. A reader would cite it as substantive evidence without adaptation.
+
+      ∎ 100-120: Definitive. As above, and the abstract also covers the conditions, trade-offs or multiple parts that the question explicitly names.
+
+      You are scoring one abstract against many questions at once. Score each question independently and separate them decisively: do not let the paper’s general subject area lift every question sitting near that subject. Where two questions ask for different things, their scores should differ, even when the paper’s topic sits between them.
   PRP:
     1: >-
       Score the abstract’s relevance to the program from 0–120 using these ranges: 1–40 = Low relevance (0 = no relevance; topics may be tangentially related but do not directly address the program’s goals); 41–80 = Moderate relevance (clear connection, but not central—e.g., focuses on methods or secondary aspects rather than the program’s core problem); 81–120 = High relevance (directly and substantially addresses the program’s main objectives).

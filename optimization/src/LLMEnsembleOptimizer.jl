@@ -9,8 +9,10 @@ import MathOptInterface as MOI
 
 include("Optimization.jl")
 include("Metrics.jl")
+include("GradientDescent.jl")
 
-export OptimizerConfig, affinity_level, apply_programme_calibration, cross_validate, fit_programme_calibration,
-       fold_metrics_summary, grouped_folds, load_dataset, metrics_summary, sample_weights, solve_weights, write_results
+export OptimizerConfig, affinity_level, apply_programme_calibration, cross_validate, descend_weights,
+       fit_programme_calibration, fold_metrics_summary, grouped_folds, load_dataset, metrics_summary,
+       project_onto_simplex!, sample_weights, soft_kappa_loss_and_gradient, solve_weights, write_results
 
 end

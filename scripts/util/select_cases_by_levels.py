@@ -42,7 +42,12 @@ def read_csv_robust(path: Path) -> pd.DataFrame:
 
 
 def normalize_level_from_score(score: float) -> str:
-    # thresholds used elsewhere in the project (40/70)
+    # WARNING - non-canonical thresholds, deliberately left as-is.
+    # The project convention is left-closed bands cut at 40 and 80
+    # (src/analysis/affinity_levels.py::affinity_level_fixed). This helper cuts at
+    # 40/70 instead, so its "Moderate"/"High" split does not match the rest of the
+    # pipeline. It is kept unchanged so the case selections already made with it stay
+    # reproducible. Do not copy it - call affinity_level_fixed for anything new.
     try:
         s = float(score)
     except Exception:

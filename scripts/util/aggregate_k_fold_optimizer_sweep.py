@@ -43,6 +43,8 @@ def _read_sheet(report_path: Path, sheet_name: str, fold_count: int) -> pd.DataF
         frame = pd.read_excel(report_path, sheet_name=sheet_name)
     except ValueError as error:
         raise ValueError(f"{report_path} is missing required sheet {sheet_name!r}.") from error
+    if "Fold_Count" in frame.columns:
+        frame = frame.drop(columns="Fold_Count")
     frame.insert(0, "Fold_Count", fold_count)
     return frame
 

@@ -19,6 +19,12 @@ except ModuleNotFoundError:
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_ROOT = REPOSITORY_ROOT / "data" / "results" / "ensemble_weight_optimizer"
 SELECTION_METRIC = "Quadratic_Weighted_Kappa"
+METADATA_DEFAULTS: dict[str, object] = {"solver": "exact"}
+
+
+def validate_solver(objective: str, solver: str) -> None:
+    if objective == "soft_qwk" and solver != "gradient":
+        raise ValueError("--objective soft_qwk requires --solver gradient.")
 
 
 def validate_fold_range(k_min: int, k_max: int) -> range:
@@ -54,12 +60,31 @@ def child_command(args: argparse.Namespace, fold_count: int, output_dir: Path) -
         str(args.moderate_multiplier),
         "--high-multiplier",
         str(args.high_multiplier),
+        "--solver",
+        args.solver,
         "--folds",
         str(fold_count),
         "--fit-all",
         "--output-dir",
         str(output_dir),
     ]
+    if args.solver == "gradient":
+        command.extend(
+            [
+                "--learning-rate",
+                str(args.learning_rate),
+                "--max-iterations",
+                str(args.max_iterations),
+                "--patience",
+                str(args.patience),
+                "--tolerance",
+                str(args.tolerance),
+                "--level-temperature",
+                str(args.level_temperature),
+                "--restarts",
+                str(args.restarts),
+            ]
+        )
     return command
 
 
@@ -73,7 +98,19 @@ def expected_metadata(args: argparse.Namespace, fold_count: int | None = None) -
         "low_multiplier": args.low_multiplier,
         "moderate_multiplier": args.moderate_multiplier,
         "high_multiplier": args.high_multiplier,
+        "solver": args.solver,
     }
+    if args.solver == "gradient":
+        metadata.update(
+            {
+                "learning_rate": args.learning_rate,
+                "max_iterations": args.max_iterations,
+                "patience": args.patience,
+                "tolerance": args.tolerance,
+                "level_temperature": args.level_temperature,
+                "restart_count": args.restarts,
+            }
+        )
     if fold_count is None:
         metadata.update({"k_min": args.k_min, "k_max": args.k_max})
     else:
@@ -90,7 +127,9 @@ def is_compatible_metadata(metadata_path: Path, expected: dict[str, object]) -> 
     if not metadata_path.is_file():
         return False
     metadata = read_metadata(metadata_path)
-    return all(metadata.get(key) == value for key, value in expected.items())
+    return all(
+        metadata.get(key, METADATA_DEFAULTS.get(key)) == value for key, value in expected.items()
+    )
 
 
 def write_sweep_metadata(sweep_dir: Path, args: argparse.Namespace) -> None:
@@ -165,6 +204,7 @@ def write_selection(sweep_dir: Path, selected_fold_count: int, selected_qwk: flo
 
 
 def run_sweep(args: argparse.Namespace) -> Path:
+    validate_solver(args.objective, args.solver)
     fold_counts = validate_fold_range(args.k_min, args.k_max)
     sweep_dir = args.output_dir or build_sweep_directory(
         args.output_root, args.benchmark_run, args.k_min, args.k_max
@@ -196,7 +236,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--benchmark-run", required=True)
     parser.add_argument("--k-min", type=int, required=True)
     parser.add_argument("--k-max", type=int, required=True)
-    parser.add_argument("--objective", default="weighted_mae", choices=["weighted_mae", "weighted_mse"])
+    parser.add_argument(
+        "--objective", default="weighted_mae", choices=["weighted_mae", "weighted_mse", "soft_qwk"]
+    )
+    parser.add_argument("--solver", default="exact", choices=["exact", "gradient"])
+    parser.add_argument("--learning-rate", type=float, default=0.05)
+    parser.add_argument("--max-iterations", type=int, default=5000)
+    parser.add_argument("--patience", type=int, default=200)
+    parser.add_argument("--tolerance", type=float, default=1e-10)
+    parser.add_argument("--level-temperature", type=float, default=5.0)
+    parser.add_argument("--restarts", type=int, default=1)
     parser.add_argument("--weight-scope", default="programme", choices=["global", "programme"])
     parser.add_argument("--calibration-scope", default="none", choices=["none", "programme"])
     parser.add_argument("--low-multiplier", type=float, default=1.0)

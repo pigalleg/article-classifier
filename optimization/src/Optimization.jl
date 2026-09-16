@@ -10,11 +10,34 @@ struct OptimizerConfig
     low_multiplier::Float64
     moderate_multiplier::Float64
     high_multiplier::Float64
+    solver::Symbol
+    learning_rate::Float64
+    max_iterations::Int
+    patience::Int
+    tolerance::Float64
+    level_temperature::Float64
+    restart_count::Int
 end
 
 OptimizerConfig(; objective::Symbol = :weighted_mae, weight_scope::Symbol = :global, calibration_scope::Symbol = :none,
-                low_multiplier::Real = 1.0, moderate_multiplier::Real = 2.0, high_multiplier::Real = 2.0) =
-    OptimizerConfig(objective, weight_scope, calibration_scope, Float64(low_multiplier), Float64(moderate_multiplier), Float64(high_multiplier))
+                low_multiplier::Real = 1.0, moderate_multiplier::Real = 2.0, high_multiplier::Real = 2.0,
+                solver::Symbol = :exact, learning_rate::Real = 0.05, max_iterations::Integer = 5000,
+                patience::Integer = 200, tolerance::Real = 1e-10, level_temperature::Real = 5.0,
+                restart_count::Integer = 1) =
+    OptimizerConfig(objective, weight_scope, calibration_scope, Float64(low_multiplier), Float64(moderate_multiplier),
+                    Float64(high_multiplier), solver, Float64(learning_rate), Int(max_iterations), Int(patience),
+                    Float64(tolerance), Float64(level_temperature), Int(restart_count))
+
+function validate_solver_objective(config::OptimizerConfig)
+    config.solver in (:exact, :gradient) || error("Unsupported solver: $(config.solver)")
+    if config.solver == :exact
+        config.objective in (:weighted_mae, :weighted_mse) ||
+            error("The exact solver supports weighted_mae and weighted_mse; $(config.objective) requires solver = :gradient.")
+    else
+        config.objective in (:weighted_mae, :weighted_mse, :soft_qwk) || error("Unsupported objective: $(config.objective)")
+    end
+    return nothing
+end
 
 function require_columns(data::DataFrame, columns::Vector{Symbol}, source::AbstractString)
     missing_columns = setdiff(columns, Symbol.(names(data)))
@@ -54,9 +77,15 @@ function load_dataset(expert_path::AbstractString, benchmark_path::AbstractStrin
 end
 
 function solve_weights(scores::Matrix{Float64}, target::Vector{Float64}, config::OptimizerConfig = OptimizerConfig())
-    config.objective in (:weighted_mae, :weighted_mse) || error("Unsupported objective: $(config.objective)")
+    validate_solver_objective(config)
     config.weight_scope == :global || error("Global solver requires weight_scope = :global.")
     size(scores, 1) == length(target) || error("Score rows and target values must have equal length.")
+    if config.solver == :gradient
+        result = descend_weights(scores, target, fill(1, length(target)), 1, config)
+        weights = vec(result.weights)
+        return (weights = weights, fitted_scores = scores * weights, objective_value = result.objective_value,
+                status = result.status, iterations = result.iterations)
+    end
     model = Model(Gurobi.Optimizer)
     set_silent(model)
     pair_count, model_count = size(scores)
@@ -80,12 +109,18 @@ function solve_weights(scores::Matrix{Float64}, target::Vector{Float64}, config:
 end
 
 function solve_weights(scores::Matrix{Float64}, target::Vector{Float64}, programmes::AbstractVector, config::OptimizerConfig)
-    config.objective in (:weighted_mae, :weighted_mse) || error("Unsupported objective: $(config.objective)")
+    validate_solver_objective(config)
     config.weight_scope == :programme || error("Programme solver requires weight_scope = :programme.")
     size(scores, 1) == length(target) || error("Score rows and target values must have equal length.")
     length(programmes) == length(target) || error("Programme values and target values must have equal length.")
     programme_names = sort(unique(string.(programmes)))
     programme_indices = index_programmes(programmes, programme_names)
+    if config.solver == :gradient
+        result = descend_weights(scores, target, programme_indices, length(programme_names), config)
+        return (weights = result.weights, programme_names = programme_names,
+                fitted_scores = programme_ensemble_scores(scores, programme_indices, result.weights),
+                objective_value = result.objective_value, status = result.status, iterations = result.iterations)
+    end
     model = Model(Gurobi.Optimizer)
     set_silent(model)
     pair_count, model_count = size(scores)

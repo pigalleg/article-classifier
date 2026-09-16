@@ -38,6 +38,7 @@ def test_map_questions_to_programmes_reads_canonical_mapping(monkeypatch):
 
 
 def test_apply_affinity_level_fixed_uses_canonical_boundaries():
+    """Bands are left-closed: 40 is Moderate and 80 is High, not the band below."""
     affinity_df = pd.DataFrame(
         {"Final_Affinity": [-1, 0, 39.9, 40, 79.9, 80, 120, None]}
     )
@@ -48,11 +49,32 @@ def test_apply_affinity_level_fixed_uses_canonical_boundaries():
         pd.NA,
         "Low",
         "Low",
-        "Low",
         "Moderate",
         "Moderate",
         "High",
+        "High",
         pd.NA,
+    ]
+
+
+def test_apply_affinity_level_fixed_can_use_six_bands():
+    affinity_df = pd.DataFrame(
+        {"Final_Affinity": [20, 20.1, 40, 40.1, 60, 60.1, 80, 80.1, 100, 100.1]}
+    )
+
+    result = apply_affinity_level_fixed(affinity_df, six_bands=True)
+
+    assert result["Affinity_Level"].tolist() == [
+        "Low+",
+        "Low+",
+        "Moderate",
+        "Moderate",
+        "Moderate+",
+        "Moderate+",
+        "High",
+        "High",
+        "High+",
+        "High+",
     ]
 
 
@@ -104,7 +126,7 @@ def test_select_prp_assignments_uses_single_best_question_and_margin():
         "high_affinity_and_within_margin",
         "high_affinity",
         "high_affinity",
-        "low_fallback_within_relative_margin",
+        "within_relative_margin",
     ]
 
 
@@ -129,12 +151,12 @@ def test_select_prp_assignments_can_report_all_programmes():
         ["b", "IBR"],
         ["b", "Stability"],
     ]
-    assert result["Is_Selected"].tolist() == [True, False, True, True, False]
+    assert result["Is_Selected"].tolist() == [True, False, True, False, False]
     assert result["Selection_Reason"].tolist() == [
         "high_affinity_and_within_margin",
         "not_selected",
-        "low_fallback_within_relative_margin",
-        "low_fallback_within_relative_margin",
+        "within_relative_margin",
+        "not_selected",
         "not_selected",
     ]
 
@@ -177,7 +199,7 @@ def test_label_all_prp_affinities_keeps_every_programme_and_uses_maximum():
     assert result["PRP_Name"].tolist() == ["Planning", "CROF", "DER"]
     assert result["Highest_Question_ID"].tolist() == [1, 3, 5]
     assert result["Highest_Question_Affinity"].tolist() == [81, 80, 40]
-    assert result["Affinity_Level"].tolist() == ["High", "Moderate", "Low"]
+    assert result["Affinity_Level"].tolist() == ["High", "High", "Moderate"]
 
 
 def test_assign_prps_labels_every_programme(monkeypatch):
@@ -205,3 +227,32 @@ def test_assign_prps_labels_every_programme(monkeypatch):
     assert result["Highest_Question_ID"].tolist() == [1, 2]
     assert result["Highest_Question_Affinity"].tolist() == [90, 30]
     assert result["Affinity_Level"].tolist() == ["High", "Low"]
+
+
+def test_assign_prps_can_use_six_bands(monkeypatch):
+    adjudication_df = pd.DataFrame(
+        {
+            "Abstract_Index": ["a"] * 6,
+            "RA2025_ID": [1, 2, 3, 4, 5, 6],
+            "RA_Question": [f"Question {question_id}" for question_id in range(1, 7)],
+            "Final_Affinity": [20, 40, 60, 80, 100, 101],
+        }
+    )
+    mapping_df = pd.DataFrame(
+        {
+            "RA2025": [1, 2, 3, 4, 5, 6],
+            "Grouping": ["Low", "Low plus", "Moderate", "Moderate plus", "High", "High plus"],
+        }
+    )
+    monkeypatch.setattr(pd, "read_csv", lambda path: mapping_df)
+
+    result = assign_prps(adjudication_df, six_bands=True)
+
+    assert result["Affinity_Level"].tolist() == [
+        "High+",
+        "High+",
+        "High",
+        "Moderate+",
+        "Moderate",
+        "Low+",
+    ]

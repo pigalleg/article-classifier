@@ -1,10 +1,10 @@
 # LLM Ensemble Optimizer
 
-A diagnostic-only Julia linear program for learning non-negative LLM ensemble weights that sum to one.
+A diagnostic-only Julia optimizer for learning non-negative LLM ensemble weights that sum to one. Two solvers are available: an exact Gurobi linear/quadratic program, and a projected gradient descent solver that also supports objectives no linear program can express.
 
 ## Requirements
 
-Use a current stable Julia release and the Gurobi 12 installation at `/opt/gurobi1201`. The project launcher sets `GUROBI_HOME=/opt/gurobi1201/linux64` and `GRB_LICENSE_FILE=/opt/gurobi1201/gurobi.lic`. Instantiate the isolated environment:
+Use a current stable Julia release. The exact solver needs the Gurobi 12 installation at `/opt/gurobi1201`; `--solver gradient` runs in pure Julia and needs no licence. The project launcher sets `GUROBI_HOME=/opt/gurobi1201/linux64` and `GRB_LICENSE_FILE=/opt/gurobi1201/gurobi.lic`. Instantiate the isolated environment:
 
 ```bash
 julia --project=optimization -e 'using Pkg; Pkg.instantiate()'
@@ -32,7 +32,14 @@ bash optimization/run_optimizer.sh \
 |---|---|---|
 | `--expert-run` | calibration run ID; default `20260618_Mark_batch1_v4` | Uses `data/processed/affinity_calibration/<run ID>/calibration_abstract_question_affinities.csv` as expert labels. |
 | `--benchmark-run` | benchmark run ID; default `20260724_155639` | Uses `data/results/affinity_benchmark/<run ID>/merged_ra_affinities.csv` as model scores. |
-| `--objective` | `weighted_mae` (default), `weighted_mse` | Selects absolute or squared score error for fitting ensemble weights. |
+| `--objective` | `weighted_mae` (default), `weighted_mse`, `soft_qwk` | Selects absolute score error, squared score error, or the smoothed quadratic weighted kappa. `soft_qwk` requires `--solver gradient`. |
+| `--solver` | `exact` (default), `gradient` | Solves with Gurobi, or with projected gradient descent on the weight simplex. |
+| `--learning-rate` | positive; default `0.05` | Largest weight change any single model may take in one gradient iteration, before backtracking. |
+| `--max-iterations` | positive integer; default `5000` | Gradient iteration budget per starting point. |
+| `--patience` | positive integer; default `200` | Consecutive iterations with relative improvement below `--tolerance` before the descent stops. |
+| `--tolerance` | positive; default `1e-10` | Relative improvement that still counts as progress. |
+| `--level-temperature` | positive; default `5.0` | Affinity-score width over which the `soft_qwk` band membership transitions from one level to the next. |
+| `--restarts` | positive integer; default `1` | Number of starting points: uniform weights, then the single-model vertices ranked by their own objective. |
 | `--weight-scope` | `global` (default), `programme` | Learns one model vector globally or one vector per RA programme. |
 | `--calibration-scope` | `none` (default), `programme` | Applies no score calibration or an affine post-ensemble calibration per programme. |
 | `--low-multiplier` | non-negative; default `1.0` | Relative training importance of expert Low examples. |
@@ -153,7 +160,7 @@ Run an independent programme-by-model optimization for every integer $k$ in an i
   --k-max 10
 ```
 
-The sweep always supplies `--fit-all` to its children. Its output directory is named `<timestamp>_kfold_sweep_<benchmark>_k<min>-<max>/` and contains `k3/`, `k4/`, and so on. Each child retains the normal optimizer report, metadata, out-of-fold predictions, and `final_weights.csv`.
+The sweep accepts `--solver` and, when it is `gradient`, forwards `--learning-rate`, `--max-iterations`, `--patience`, `--tolerance`, `--level-temperature` and `--restarts` to every child; those settings become part of the resume compatibility check. The sweep always supplies `--fit-all` to its children. Its output directory is named `<timestamp>_kfold_sweep_<benchmark>_k<min>-<max>/` and contains `k3/`, `k4/`, and so on. Each child retains the normal optimizer report, metadata, out-of-fold predictions, and `final_weights.csv`.
 
 At the sweep level, `k_fold_comparison.xlsx` contains `Overall Metrics by K`, `Per-Level Metrics by K`, `Fold Weight Stability by K`, `Run Metadata`, and `Selection`. The selected run has the highest optimized pooled OOF `Quadratic_Weighted_Kappa`; exact ties select the lower $k$. `selected_programme_model_weights.csv` is copied from that run's `final_weights.csv`; programme calibration, when selected, is copied to `selected_programme_calibration.csv`. `selection.toml` records the metric, winning $k$, tie-breaker, and source child directory.
 
@@ -205,6 +212,53 @@ $$
 It penalizes large score errors more strongly while retaining the same fixed 40 and 80 class boundaries for evaluation.
 
 Level multipliers must be non-negative, with at least one positive multiplier. Set two multipliers to `0` to optimize exclusively for the remaining expert level.
+
+## Gradient Descent Solver
+
+`--solver gradient` replaces the Gurobi call with projected gradient descent, run identically inside each cross-validation fold and for `--fit-all`. Each iteration computes the analytic gradient $\nabla_w L$, rescales it so its largest entry moves a weight by `--learning-rate`, takes a step, and projects the result back onto the probability simplex $\{w \geq 0, \sum_m w_m = 1\}$ by the exact Euclidean projection. A backtracking line search halves the step until the objective actually decreases, which makes every accepted iteration monotone and removes step-size tuning as a practical concern. Programme weighting projects each programme's row separately, so every programme keeps its own convex combination. Weights below `1e-4` are snapped to zero and the row renormalized whenever that does not increase the objective, so the reported weights stay as sparse and readable as the linear program's.
+
+The descent is deterministic: it starts from uniform weights, and `--restarts` adds the single-model vertices in order of their own objective value, keeping the best result. There is no random initialization and no seed to record.
+
+On `weighted_mae` and `weighted_mse` the two solvers optimize the same convex problem, so the gradient solver is a check on the exact one rather than an alternative to it. On the Mark calibration set against benchmark `20260726_134607_5` with programme weights, it reproduced the Gurobi optimum to within 0.03 percent of the objective (10647.85 against 10644.88) and returned the same weights. Prefer `--solver exact` for these two objectives; use the gradient solver when Gurobi is unavailable, or to fit an objective Gurobi cannot express.
+
+### Soft Quadratic Weighted Kappa
+
+`--objective soft_qwk` optimizes the metric the k-fold sweep selects on, instead of a score-error stand-in for it. Hard level assignment is a step function of the ensemble score and has zero gradient almost everywhere, so band membership is smoothed with logistic gates at the fixed 40 and 80 cuts, using the width $\tau$ from `--level-temperature`:
+
+$$
+p_{i,\text{High}} = \sigma\!\left(\frac{\hat{s}_i - 80}{\tau}\right), \qquad
+p_{i,\text{Moderate}} = \sigma\!\left(\frac{\hat{s}_i - 40}{\tau}\right) - p_{i,\text{High}}, \qquad
+p_{i,\text{Low}} = 1 - \sigma\!\left(\frac{\hat{s}_i - 40}{\tau}\right)
+$$
+
+These soft memberships replace the predicted column of the confusion matrix, each pair contributing its level multiplier $c_i$ rather than a count. With quadratic disagreement weights $W_{kl} = (k-l)^2/(K-1)^2$, expert level $t_i$, expert totals $n_k = \sum_{i: t_i = k} c_i$, predicted totals $m_l = \sum_i c_i p_{i,l}$ and $N = \sum_i c_i$, the solver minimizes
+
+$$
+1 - \kappa_{\text{soft}} = \frac{\sum_i c_i \sum_l W_{t_i,l}\, p_{i,l}}{\frac{1}{N}\sum_{k,l} W_{kl}\, n_k m_l}
+$$
+
+which is exactly $1 - \kappa$ once $\tau \to 0$. `Objective_Value` holds this quantity, so lower is better and `0` is perfect agreement; it is not comparable with the score-error objective values. Smaller $\tau$ tracks the hard metric more closely but flattens the gradient away from the two cuts; the `5.0` default transitions over roughly $\pm 15$ affinity points.
+
+This objective fits the metric harder, not necessarily better. On the Mark calibration set with programme weights and equal level multipliers it raised in-sample quadratic weighted kappa from 0.468 to 0.522 at $\tau = 2.5$, while pooled out-of-fold kappa fell from 0.472 to 0.432; every temperature between 1 and 20 landed below the `weighted_mae` fit. With 602 labelled pairs, 27 of them High, and $6 \times 8$ free weights, directly fitting a discrete agreement metric overfits where score-error fitting does not. It did lift out-of-fold High recall (0.259 to 0.333 at $\tau = 5$), so it is worth trying when High recall is the priority, but judge it on out-of-fold metrics only.
+
+```bash
+bash optimization/run_optimizer.sh \
+  --expert-run 20260728_abstracts_evaluation_template_mark_om_v1 \
+  --benchmark-run 20260726_134607_5 \
+  --weight-scope programme \
+  --objective soft_qwk \
+  --solver gradient \
+  --level-temperature 5 \
+  --restarts 3 \
+  --low-multiplier 1 \
+  --moderate-multiplier 1 \
+  --high-multiplier 1 \
+  --folds 5 \
+  --fit-all \
+  --output-dir data/results/ensemble_weight_optimizer/programme_soft_qwk
+```
+
+`fold_weights.csv` and the report's weight-stability table record `Solver_Status` as `GRADIENT_CONVERGED` or `GRADIENT_ITERATION_LIMIT`; an iteration-limit status means `--max-iterations` was exhausted before the line search stalled.
 
 ## Outputs
 

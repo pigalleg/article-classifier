@@ -76,15 +76,21 @@ def map_questions_to_programmes(ra_adjudication_df: pd.DataFrame) -> pd.DataFram
 
 def apply_affinity_level_fixed(
     affinity_df: pd.DataFrame,
+    six_bands: bool = False,
 ) -> pd.DataFrame:
-    """Add affinity levels using the adjudication pipeline's fixed scale."""
+    """Add three or six fixed-scale affinity levels."""
     result = affinity_df.copy()
     result["Final_Affinity"] = pd.to_numeric(
         result["Final_Affinity"], errors="coerce"
     )
-    result["Affinity_Level"] = result["Final_Affinity"].apply(
-        affinity_level_fixed
-    )
+    if six_bands:
+        result["Affinity_Level"] = result["Final_Affinity"].apply(
+            affinity_level_fixed, six_bands=True
+        )
+    else:
+        result["Affinity_Level"] = result["Final_Affinity"].apply(
+            affinity_level_fixed
+        )
     return result
 
 
@@ -190,12 +196,13 @@ def select_prp_assignments(
 
 def label_all_prp_affinities(
     mapped_question_scores: pd.DataFrame,
+    six_bands: bool = False,
 ) -> pd.DataFrame:
     """Label every abstract-programme pair by its strongest question score.
 
     This function does not select or discard programmes. The canonical affinity
-    scale labels each programme Low, Moderate, or High using the maximum affinity
-    among its related RA questions.
+    scale labels each programme using the maximum affinity among its related RA
+    questions.
     """
     question_scores = mapped_question_scores.copy()
     question_scores["Final_Affinity"] = pd.to_numeric(
@@ -229,7 +236,7 @@ def label_all_prp_affinities(
     )
     programme_affinities["Affinity_Level"] = programme_affinities[
         "Highest_Question_Affinity"
-    ].apply(affinity_level_fixed)
+    ].apply(affinity_level_fixed, six_bands=six_bands)
 
     return programme_affinities.sort_values(
         ["Abstract_Index", "Highest_Question_Affinity", "PRP_Name"],
@@ -240,9 +247,16 @@ def label_all_prp_affinities(
 def assign_prps(
     ra_adjudication_df: pd.DataFrame,
     low_level_strategy: LowLevelStrategy = "report_all",
+    six_bands: bool = False,
 ) -> pd.DataFrame:
-    """Map, label, and assign PRPs from adjudicated RA question scores."""
+    """Map, label, and assign PRPs from adjudicated RA question scores.
+
+    Set ``six_bands`` to label programmes as Low, Low+, Moderate, Moderate+,
+    High, and High+.
+    """
     mapped_questions = map_questions_to_programmes(ra_adjudication_df)
-    levelled_questions = apply_affinity_level_fixed(mapped_questions)
+    levelled_questions = apply_affinity_level_fixed(
+        mapped_questions, six_bands=six_bands
+    )
     # return select_prp_assignments(levelled_questions, low_level_strategy)
-    return label_all_prp_affinities(levelled_questions)
+    return label_all_prp_affinities(levelled_questions, six_bands=six_bands)

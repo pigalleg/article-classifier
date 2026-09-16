@@ -447,6 +447,11 @@ def _cli():
                     d['score_for_script'] = d[alt]
                     break
         # compute level using heuristic
+        # WARNING - non-canonical thresholds, deliberately left as-is.
+        # The project convention is left-closed bands cut at 40 and 80
+        # (src/analysis/affinity_levels.py::affinity_level_fixed). This helper is
+        # right-closed at 40 and cuts High at 70, so it disagrees with the pipeline
+        # on both counts. Kept unchanged so prior selections stay reproducible.
         def level_of(s):
             try:
                 s = float(s)

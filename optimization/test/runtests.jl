@@ -138,3 +138,109 @@ end
     optimized = filter(:Approach => ==("Optimized"), metrics)
     @test only(optimized.Value[optimized.Metric .== "High_Precision"]) == 0.0
 end
+
+@testset "simplex projection" begin
+    @test project_onto_simplex!([0.5, 0.5]) == [0.5, 0.5]
+    @test isapprox(sum(project_onto_simplex!([3.0, -1.0, 0.2])), 1.0; atol = 1e-12)
+    @test all(project_onto_simplex!([3.0, -1.0, 0.2]) .>= 0.0)
+    @test project_onto_simplex!([10.0, 0.0, 0.0]) == [1.0, 0.0, 0.0]
+    @test isapprox(project_onto_simplex!([0.1, 0.1, 0.1]), fill(1 / 3, 3); atol = 1e-12)
+end
+
+@testset "soft kappa gradient matches finite differences" begin
+    ensemble_scores = [12.0, 38.0, 55.0, 79.0, 95.0, 41.0]
+    expert_levels = [1, 1, 2, 2, 3, 2]
+    sample_multipliers = [1.0, 1.0, 2.0, 2.0, 4.0, 2.0]
+    loss, gradient = soft_kappa_loss_and_gradient(ensemble_scores, expert_levels, sample_multipliers, 5.0)
+    step = 1e-6
+    for index in eachindex(ensemble_scores)
+        forward_scores = copy(ensemble_scores)
+        backward_scores = copy(ensemble_scores)
+        forward_scores[index] += step
+        backward_scores[index] -= step
+        forward_loss, _ = soft_kappa_loss_and_gradient(forward_scores, expert_levels, sample_multipliers, 5.0)
+        backward_loss, _ = soft_kappa_loss_and_gradient(backward_scores, expert_levels, sample_multipliers, 5.0)
+        @test isapprox(gradient[index], (forward_loss - backward_loss) / (2step); atol = 1e-6)
+    end
+    @test 0.0 <= loss <= 2.0
+end
+
+@testset "gradient descent recovers the weighted MAE optimum" begin
+    scores = [10.0 80.0; 20.0 70.0; 90.0 20.0; 100.0 10.0]
+    target = [10.0, 20.0, 90.0, 100.0]
+    config = OptimizerConfig(solver = :gradient, max_iterations = 4000)
+    result = solve_weights(scores, target, config)
+    @test all(result.weights .>= -1e-8)
+    @test isapprox(sum(result.weights), 1.0; atol = 1e-8)
+    @test isapprox(result.weights[1], 1.0; atol = 1e-3)
+    @test result.objective_value < 1e-2
+end
+
+@testset "gradient descent agrees with the exact solver" begin
+    scores = [12.0 70.0 30.0; 25.0 65.0 44.0; 88.0 25.0 61.0; 96.0 12.0 77.0; 51.0 48.0 55.0]
+    target = [15.0, 30.0, 85.0, 95.0, 50.0]
+    for objective in (:weighted_mae, :weighted_mse)
+        gradient_result = solve_weights(scores, target, OptimizerConfig(objective = objective, solver = :gradient, max_iterations = 6000))
+        try
+            exact_result = solve_weights(scores, target, OptimizerConfig(objective = objective))
+            @test gradient_result.objective_value <= exact_result.objective_value * 1.02 + 1e-6
+        catch error
+            occursin("No Gurobi license found", sprint(showerror, error)) || rethrow()
+            @test_skip "Gurobi license is unavailable in this environment."
+        end
+    end
+end
+
+@testset "programme-scoped gradient descent" begin
+    scores = [10.0 80.0; 20.0 70.0; 90.0 20.0; 100.0 10.0]
+    target = [10.0, 20.0, 20.0, 10.0]
+    programmes = ["A", "A", "B", "B"]
+    config = OptimizerConfig(weight_scope = :programme, solver = :gradient, max_iterations = 4000)
+    result = solve_weights(scores, target, programmes, config)
+    @test result.programme_names == ["A", "B"]
+    @test all(result.weights .>= -1e-8)
+    @test all(isapprox.(vec(sum(result.weights, dims = 2)), 1.0; atol = 1e-8))
+    @test result.weights[1, 1] > result.weights[1, 2]
+    @test result.weights[2, 2] > result.weights[2, 1]
+end
+
+@testset "soft kappa objective beats score-error fitting on level agreement" begin
+    accurate_model = [5.0, 15.0, 45.0, 60.0, 85.0, 110.0, 30.0, 95.0]
+    biased_model = [40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 41.0, 44.0]
+    scores = hcat(accurate_model, biased_model)
+    target = [5.0, 15.0, 45.0, 60.0, 85.0, 110.0, 30.0, 95.0]
+    kappa_result = solve_weights(scores, target, OptimizerConfig(objective = :soft_qwk, solver = :gradient,
+        low_multiplier = 1.0, moderate_multiplier = 1.0, high_multiplier = 1.0, max_iterations = 6000, restart_count = 3))
+    @test kappa_result.weights[1] > kappa_result.weights[2]
+    predicted_levels = affinity_level.(kappa_result.fitted_scores)
+    @test predicted_levels == affinity_level.(target)
+    @test kappa_result.objective_value < 0.5
+end
+
+@testset "solver and objective validation" begin
+    scores = [10.0 80.0; 20.0 70.0]
+    target = [10.0, 20.0]
+    @test_throws ErrorException solve_weights(scores, target, OptimizerConfig(objective = :soft_qwk))
+    @test_throws ErrorException solve_weights(scores, target, OptimizerConfig(objective = :hinge, solver = :gradient))
+    @test_throws ErrorException solve_weights(scores, target, OptimizerConfig(solver = :adam))
+end
+
+@testset "gradient cross-validation reports solver status" begin
+    dataset = (
+        data = DataFrame(
+            Abstract_Index = [1, 1, 2, 2, 3, 3, 4, 4],
+            RA2025_ID = ["q1", "q2", "q1", "q2", "q1", "q2", "q1", "q2"],
+            Grouping = fill("IBR", 8),
+            model_a = [10.0, 30.0, 50.0, 70.0, 90.0, 20.0, 40.0, 100.0],
+            model_b = [80.0, 60.0, 45.0, 30.0, 15.0, 70.0, 55.0, 5.0],
+        ),
+        target = [10.0, 30.0, 50.0, 70.0, 90.0, 20.0, 40.0, 100.0],
+        scores = [10.0 80.0; 30.0 60.0; 50.0 45.0; 70.0 30.0; 90.0 15.0; 20.0 70.0; 40.0 55.0; 100.0 5.0],
+        model_names = ["model_a", "model_b"],
+    )
+    results = cross_validate(dataset; fold_count = 2, config = OptimizerConfig(objective = :soft_qwk, solver = :gradient,
+        low_multiplier = 1.0, moderate_multiplier = 1.0, high_multiplier = 1.0, max_iterations = 2000))
+    @test nrow(results.predictions) == 8
+    @test all(startswith.(results.weights.Solver_Status, "GRADIENT_"))
+    @test all(isapprox.(combine(groupby(results.weights, :Fold), :Weight => sum => :Total).Total, 1.0; atol = 1e-8))
+end
