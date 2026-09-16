@@ -2,6 +2,11 @@
 
 Project to classify IEEE abstracts against Research Agenda (RA) questions using embeddings and LLM reasoning.
 
+## Data Management
+
+The active raw-to-processed data lineage, result lifecycle, and sharing guidance
+are documented in [Data Management and Lineage](docs/data-management.md).
+
 ## Running Scripts
 
 Run commands from the repository root. The scripts use paths like `data/processed` and imports from `src`.
