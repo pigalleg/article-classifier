@@ -52,16 +52,18 @@ If the remote needs to be changed:
 
 ## Google OAuth
 
-If Google blocks the shared DVC application, create a Desktop OAuth client in
-Google Cloud, enable the Google Drive API, and add the Google account as a test
-user while the consent screen is in Testing. Configure the client locally:
+If Google reports that the application is blocked, create a Desktop OAuth
+client in Google Cloud, enable the Google Drive API, and add the Google account
+as a test user while the consent screen is in Testing. Configure the client
+locally:
 
 ```bash
 ~/.virtualenvs/classifier/bin/dvc remote modify --local gdrive gdrive_client_id "YOUR_CLIENT_ID"
 ~/.virtualenvs/classifier/bin/dvc remote modify --local gdrive gdrive_client_secret "YOUR_CLIENT_SECRET"
 ```
 
-Store the generated user credential outside the repository:
+In every repository checkout, before its first `dvc push` or `dvc pull`, point
+the local DVC configuration at a credential file outside the repository:
 
 ```bash
 mkdir -p "$HOME/.config/dvc/article-classifier"
@@ -92,13 +94,20 @@ Verify the local cache and remote agree:
 ~/.virtualenvs/classifier/bin/dvc status -c
 ```
 
-On another machine, clone the repository, configure local OAuth credentials,
-and retrieve the selected results:
+On another machine or in a fresh clone, Git first needs to supply the committed
+`.dvc` manifests and shared remote configuration. OAuth client values and the
+credential-file setting are local-only, so repeat the Google OAuth setup above
+in that checkout before pulling. Checkouts using the same Linux user may point
+to the same `$HOME/.config/dvc/article-classifier/gdrive-auth.json` file:
 
 ```bash
 git pull
 ~/.virtualenvs/classifier/bin/dvc pull -r gdrive
 ```
+
+If `dvc pull` says that everything is up to date in a fresh clone but no result
+folders appear, check that the clone includes the committed `.dvc` manifests.
+Without manifests, DVC has no targets to download.
 
 ## Updating a Result Target
 
