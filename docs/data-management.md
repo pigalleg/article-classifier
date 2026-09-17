@@ -53,6 +53,47 @@ manifest, settings snapshot, and all result files together. This preserves the
 model configuration, source revision, and run identity required to interpret a
 score later.
 
+## Active Notebook Data Selections
+
+This table records the currently active data-folder selectors in notebooks as
+of September 2026. Commented alternatives are excluded. For conditional
+loaders, the row reflects the branch selected by the current flag value.
+
+| Notebook | Active benchmark folder or pattern | Active calibration folder |
+|---|---|---|
+| `01_ensemble_affinity.ipynb` | `tpwrs_2026_tpwrs_2026` | - |
+| `02_ensemble_affinity_adjudication.ipynb` | `tpwrs_2026_tpwrs_2026` | - |
+| `06_prp_adjudication_error_bars.ipynb` | `tpwrs_2026_tpwrs_2026` | - |
+| `07_intra_panel_rank_consistency - promp modificatiom.ipynb` | `20260517_175302` | - |
+| `07_intra_panel_rank_consistency base case.ipynb` | `20260422_212121_1` | - |
+| `07_intra_panel_rank_consistency.ipynb` | `20260726_154151` | - |
+| `10_affinity_diagnostics_metrics_per_model.ipynb` | `20260724_155639` | `20260618_Mark_batch1_v4` |
+| `11_affinity_diagnostisc_metrics_pipeline.ipynb` | `20260726_134607_5` | `20260728_abstracts_evaluation_template_mark_om_v1` |
+| `12_affinity_diagnostics_metrics_binary.ipynb` | `20260726_134607_5` | `20260728_abstracts_evaluation_template_mark_om_v1` |
+| `13_pipeline_timing_price.ipynb` | all folders containing `affinity_timing_log.csv` | - |
+| `14_calibration_methodology_comparison.ipynb` | `20260726_134607_1` | `20260728_abstracts_evaluation_template_mark_om_v1`; `20260728_abstracts_evaluation_template_charlie_s_v1` |
+| `15_adjudication_impact_deep_dive.ipynb` | `20260726_134607_5.1` | `20260728_abstracts_evaluation_template_mark_om_v1` |
+| `16_tpwrs_2025_2026_affinity_analysis.ipynb` | `tpwrs_*` | - |
+| `17_*`, `18_*`, and `19_*` TPWRS notebooks | `tpwrs_*` | - |
+
+Notebook 10 currently uses `select = "calibration"`. Changing that flag to
+`"benchmark"` instead selects benchmark run `20260726_134607_5` and
+calibration run `20260728_abstracts_evaluation_template_mark_om_v1`.
+
+## DVC Storage Decision
+
+| Repository path | Current scale | Storage decision |
+|---|---:|---|
+| `data/results/affinity_benchmark/` | About 4.0 GB; includes active run `20260726_134607_5.1` (55 MB) | Track with DVC and store payloads in a private Google Drive remote. Keep DVC metadata in Git. |
+| `data/results/ensemble_weight_optimizer/` | Generated results | Track reportable runs with DVC; ignore disposable runs. |
+| `data/processed/affinity_calibration/` | 22 files; 2.4 MB | Keep canonical calibration exports in ordinary Git. Do not use DVC or Git LFS at this scale. |
+| `data/processed/affinity_calibration/to delete/` | Historical artifacts | Do not track. Remove or archive outside the active dataset. |
+
+DVC is preferred over Git LFS for benchmark results because the outputs are
+numerous, generated, and large. A DVC remote keeps ordinary Git history small
+while allowing notebooks to retrieve the selected result folders with
+`dvc pull`.
+
 ## Sharing a Fresh Clone
 
 1. Clone the Git repository to obtain code, prompts, settings, small reference
