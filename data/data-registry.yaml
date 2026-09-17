@@ -1,0 +1,102 @@
+version: 1
+
+storage_remotes:
+  gdrive:
+    type: dvc
+    access: private
+    description: Default DVC remote for archived result payloads. The remote URL and credentials are configured outside this registry.
+
+datasets:
+  - name: affinity_benchmark_20260422_212121_1
+    path: data/results/affinity_benchmark/20260422_212121_1
+    producer: scripts/run_affinity_benchmark.py
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/affinity_benchmark/20260422_212121_1.dvc
+    description: Active input for the base-case intra-panel rank-consistency notebook.
+
+  - name: affinity_benchmark_20260517_175302
+    path: data/results/affinity_benchmark/20260517_175302
+    producer: scripts/run_affinity_benchmark.py
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/affinity_benchmark/20260517_175302.dvc
+    description: Active input for the prompt-modification intra-panel rank-consistency notebook.
+
+  - name: affinity_benchmark_20260724_155639
+    path: data/results/affinity_benchmark/20260724_155639
+    producer: scripts/run_affinity_benchmark.py
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/affinity_benchmark/20260724_155639.dvc
+    description: Active benchmark input for notebook 10 when its calibration selector is enabled.
+
+  - name: affinity_benchmark_20260726_134607_1
+    path: data/results/affinity_benchmark/20260726_134607_1
+    producer: scripts/run_affinity_benchmark.py
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/affinity_benchmark/20260726_134607_1.dvc
+    description: Active benchmark input for notebook 14.
+
+  - name: affinity_benchmark_20260726_134607_5
+    path: data/results/affinity_benchmark/20260726_134607_5
+    producer: scripts/run_affinity_benchmark.py
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/affinity_benchmark/20260726_134607_5.dvc
+    description: Active benchmark input for notebooks 11 and 12.
+
+  - name: affinity_benchmark_20260726_134607_5_1
+    path: data/results/affinity_benchmark/20260726_134607_5.1
+    producer: scripts/run_affinity_benchmark.py
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/affinity_benchmark/20260726_134607_5.1.dvc
+    checksum: b0fe86f199810a69137d0baf507bd944.dir
+    description: Active benchmark input for notebook 15.
+
+  - name: affinity_benchmark_20260726_154151
+    path: data/results/affinity_benchmark/20260726_154151
+    producer: scripts/run_affinity_benchmark.py
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/affinity_benchmark/20260726_154151.dvc
+    description: Active input for the current intra-panel rank-consistency notebook.
+
+  - name: tpwrs_affinity_benchmarks_2015_2026
+    path: data/results/affinity_benchmark/tpwrs_<year>_tpwrs_<year>
+    producer: scripts/run_affinity_benchmark_parallel_manifest.py
+    storage: dvc
+    remote: gdrive
+    dvc_files:
+      - data/results/affinity_benchmark/tpwrs_2015_tpwrs_2015.dvc
+      - data/results/affinity_benchmark/tpwrs_2016_tpwrs_2016.dvc
+      - data/results/affinity_benchmark/tpwrs_2017_tpwrs_2017.dvc
+      - data/results/affinity_benchmark/tpwrs_2018_tpwrs_2018.dvc
+      - data/results/affinity_benchmark/tpwrs_2019_tpwrs_2019.dvc
+      - data/results/affinity_benchmark/tpwrs_2020_tpwrs_2020.dvc
+      - data/results/affinity_benchmark/tpwrs_2021_tpwrs_2021.dvc
+      - data/results/affinity_benchmark/tpwrs_2022_tpwrs_2022.dvc
+      - data/results/affinity_benchmark/tpwrs_2023_tpwrs_2023.dvc
+      - data/results/affinity_benchmark/tpwrs_2024_tpwrs_2024.dvc
+      - data/results/affinity_benchmark/tpwrs_2025_tpwrs_2025.dvc
+      - data/results/affinity_benchmark/tpwrs_2026_tpwrs_2026.dvc
+    description: Year-specific TPWRS affinity benchmark runs used by notebooks 16 through 19.
+
+  - name: ensemble_weight_optimizer_results
+    path: data/results/ensemble_weight_optimizer
+    producer: optimization/run_optimizer.sh
+    storage: dvc
+    remote: gdrive
+    dvc_file: data/results/ensemble_weight_optimizer.dvc
+    checksum: 05f4ef87ad5d218e7b638ff0c6322245.dir
+    description: Archived optimizer weights, reports, and predictions.
+
+  - name: affinity_calibration_exports
+    path: data/processed/affinity_calibration
+    excluded_path: data/processed/affinity_calibration/to delete
+    producer: scripts/util/generate_affinity_calibration_from_excel.py
+    storage: git
+    access: repository
+    description: Small expert-label exports used by calibration and adjudication notebooks. The ignored legacy subtree is excluded.

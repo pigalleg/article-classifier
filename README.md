@@ -7,6 +7,10 @@ Project to classify IEEE abstracts against Research Agenda (RA) questions using 
 The active raw-to-processed data lineage, result lifecycle, and sharing guidance
 are documented in [Data Management and Lineage](docs/data-management.md).
 
+Large generated result artifacts are versioned with DVC and stored in the
+private Google Drive remote. See [DVC and Google Drive Setup](docs/dvc-setup.md)
+for installation, authentication, push/pull, and troubleshooting instructions.
+
 ## Running Scripts
 
 Run commands from the repository root. The scripts use paths like `data/processed` and imports from `src`.

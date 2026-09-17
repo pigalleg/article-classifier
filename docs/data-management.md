@@ -84,15 +84,21 @@ calibration run `20260728_abstracts_evaluation_template_mark_om_v1`.
 
 | Repository path | Current scale | Storage decision |
 |---|---:|---|
-| `data/results/affinity_benchmark/` | About 4.0 GB; includes active run `20260726_134607_5.1` (55 MB) | Track with DVC and store payloads in a private Google Drive remote. Keep DVC metadata in Git. |
-| `data/results/ensemble_weight_optimizer/` | Generated results | Track reportable runs with DVC; ignore disposable runs. |
-| `data/processed/affinity_calibration/` | 22 files; 2.4 MB | Keep canonical calibration exports in ordinary Git. Do not use DVC or Git LFS at this scale. |
-| `data/processed/affinity_calibration/to delete/` | Historical artifacts | Do not track. Remove or archive outside the active dataset. |
+| Selected folders in `data/results/affinity_benchmark/` | 19 individually tracked runs | DVC-tracked and uploaded to the private `gdrive` remote. The targets are the seven fixed notebook selections plus TPWRS runs 2015-2026. Other local benchmark runs remain outside DVC. |
+| `data/results/ensemble_weight_optimizer/` | 6.1 MB; 283 files | DVC-tracked and uploaded to the private `gdrive` remote. |
+| `data/processed/affinity_calibration/` | 22 files; 2.4 MB | Staged for ordinary Git tracking. DVC and Git LFS are unnecessary at this scale. |
+| `data/processed/affinity_calibration/to delete/` | Historical artifacts | Ignored by Git and not DVC-tracked. Retain locally or archive outside the active dataset. |
 
 DVC is preferred over Git LFS for benchmark results because the outputs are
 numerous, generated, and large. A DVC remote keeps ordinary Git history small
 while allowing notebooks to retrieve the selected result folders with
 `dvc pull`.
+
+The DVC target list, manifest paths, checksums, and storage classes are
+recorded in `data/data-registry.yaml`. The registry names the remote as
+`gdrive`, but deliberately does not store its Google Drive URL or credentials.
+Repository-specific installation, authentication, push/pull, and troubleshooting
+steps are documented in `docs/dvc-setup.md`.
 
 ## Sharing a Fresh Clone
 
@@ -109,9 +115,9 @@ while allowing notebooks to retrieve the selected result folders with
 
 ## Storage Record
 
-Keep this guide as the human-readable policy. When external storage or DVC is
-adopted, add a versioned `data/data-registry.yaml` containing one entry per
-shared dataset or archived run: logical name, repository path, source or
-producing script, storage class, access tier, checksum or DVC target, and a
-short description. Never store personal OneDrive paths, credentials, or shared
-links with embedded secrets in the repository.
+Keep this guide as the human-readable policy. The versioned
+`data/data-registry.yaml` records one entry per shared dataset or archived run:
+logical name, repository path, source or producing script, storage class,
+access tier, checksum or DVC target, and a short description. Never store
+personal OneDrive paths, credentials, or shared links with embedded secrets in
+the repository.
