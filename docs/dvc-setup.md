@@ -66,11 +66,8 @@ In every repository checkout, before its first `dvc push` or `dvc pull`, point
 the local DVC configuration at a credential file outside the repository:
 
 ```bash
-mkdir -p "$HOME/.config/dvc/article-classifier"
-chmod 700 "$HOME/.config/dvc/article-classifier"
-
-~/.virtualenvs/classifier/bin/dvc remote modify --local gdrive \
-  gdrive_user_credentials_file "$HOME/.config/dvc/article-classifier/gdrive-auth.json"
+mkdir -p "$HOME/.config/dvc/article-classifier" && chmod 700 "$HOME/.config/dvc/article-classifier"
+~/.virtualenvs/classifier/bin/dvc remote modify --local gdrive gdrive_user_credentials_file "$HOME/.config/dvc/article-classifier/gdrive-auth.json"
 ```
 
 The first remote operation may print an OAuth URL. Open it manually if the
@@ -131,11 +128,7 @@ the Python OpenSSL packages are incompatible. In the classifier environment,
 the compatible package set is:
 
 ```bash
-~/.virtualenvs/classifier/bin/python -m pip install \
-  "PyDrive2==1.21.2" \
-  "pyOpenSSL==24.2.1" \
-  "cryptography==43.0.3" \
-  "asyncssh==2.23.1"
+~/.virtualenvs/classifier/bin/python -m pip install "PyDrive2==1.21.2" "pyOpenSSL==24.2.1" "cryptography==43.0.3" "asyncssh==2.23.1"
 ```
 
 Then check the environment and remote:
