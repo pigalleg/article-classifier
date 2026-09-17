@@ -32,7 +32,7 @@ not inputs to supported workflows.
 | File | Origin | Consumers | Tracking recommendation |
 |---|---|---|---|
 | `data/processed/ra_grouping_ra2025.csv` | Manually curated RA-to-programme mapping | Analysis utilities and notebooks 01, 02, 09, 16, and 17 | Git. It defines the canonical programme ordering. |
-| `data/processed/ra_extended_grouping_ra2025.csv` | Compatibility copy of the canonical mapping | Notebook 09 | Git. It currently has the same contents as `ra_grouping_ra2025.csv`; retain only while the filename is required. |
+| `notebooks/input/ra_extended_grouping_ra2025.csv` | Notebook-specific RA-to-programme mapping | Archived notebook 09 | Git. The file is colocated with its exploratory notebook input rather than the active processed-data pipeline. |
 | `data/processed/manifest_tpwrs_2010_2026_by_year.csv` | Manually curated benchmark manifest | Manifest-driven benchmark workflows | Git. It defines reproducible year slices. |
 | `data/processed/manifest_tpwrs_2020_2026_by_year.csv` | Referenced by the README and manifest-runner examples | Expected by those examples | Restore or update the references before relying on the example: the file was absent in the September 2026 audit. |
 | `data/processed/abstracts_cleaned_benchmark_v1.csv` | Curated corpus subset | Benchmark runs when selected | Git if it is the frozen study population; document its selection rule. |

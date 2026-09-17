@@ -127,13 +127,13 @@ models:
           backend: local
           model: glm-5.3-flash:cloud
           execution_group: local_gpu_1
-          enabled: true
+          enabled: false
         
         - name: kimi-k3:cloud
           backend: local
           model: kimi-k3:cloud
           execution_group: local_gpu_1
-          enabled: true
+          enabled: false
         
 
         # - name: mistral-large-3:675b-cloud
