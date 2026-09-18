@@ -1,0 +1,12 @@
+{
+  "timestamp_utc": "2026-07-28T08:56:26.269348+00:00",
+  "input_xlsx": "/mnt/c/Users/pigal/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/raw/Abstracts Evaluation Template - Charlie S.xlsx",
+  "input_xlsx_name": "Abstracts Evaluation Template - Charlie S.xlsx",
+  "sheet_name": null,
+  "output_root": "/mnt/c/Users/pigal/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/results/affinity_calibration",
+  "output_dir": "/mnt/c/Users/pigal/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/results/affinity_calibration/20260728_abstracts_evaluation_template_charlie_s_v1",
+  "output_csv": "calibration_abstract_question_affinities.csv",
+  "generated_rows": 722,
+  "selected_subset_rows": 590,
+  "positive_score_rows": 132
+}

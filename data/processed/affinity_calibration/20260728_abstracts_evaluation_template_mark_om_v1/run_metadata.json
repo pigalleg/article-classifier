@@ -1,0 +1,12 @@
+{
+  "timestamp_utc": "2026-07-28T08:37:33.381390+00:00",
+  "input_xlsx": "/mnt/c/Users/pigal/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/raw/Abstracts Evaluation Template - Mark OM.xlsm",
+  "input_xlsx_name": "Abstracts Evaluation Template - Mark OM.xlsm",
+  "sheet_name": "Evaluation Matrix - Mark",
+  "output_root": "/mnt/c/Users/pigal/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/results/affinity_calibration",
+  "output_dir": "/mnt/c/Users/pigal/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/results/affinity_calibration/20260728_abstracts_evaluation_template_mark_om_v1",
+  "output_csv": "calibration_abstract_question_affinities.csv",
+  "generated_rows": 602,
+  "selected_subset_rows": 435,
+  "positive_score_rows": 167
+}

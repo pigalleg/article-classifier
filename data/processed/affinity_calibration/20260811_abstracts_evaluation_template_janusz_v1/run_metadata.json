@@ -1,0 +1,12 @@
+{
+  "timestamp_utc": "2026-08-11T09:23:32.282094+00:00",
+  "input_xlsx": "/mnt/c/Users/pgallego/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/raw/Abstracts Evaluation Template - Janusz.xlsx",
+  "input_xlsx_name": "Abstracts Evaluation Template - Janusz.xlsx",
+  "sheet_name": null,
+  "output_root": "/mnt/c/Users/pgallego/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/processed/affinity_calibration",
+  "output_dir": "/mnt/c/Users/pgallego/OneDrive - Imperial College London/PhD/Repositories/article-classifier/data/processed/affinity_calibration/20260811_abstracts_evaluation_template_janusz_v1",
+  "output_csv": "calibration_abstract_question_affinities.csv",
+  "generated_rows": 212,
+  "selected_subset_rows": 0,
+  "positive_score_rows": 212
+}

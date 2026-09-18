@@ -1,4 +1,5 @@
 .venv/
 __pycache__/
 *.pyc
-/data/processed/affinity_calibration/to delete/
+*to delete*
+*to_delete*
