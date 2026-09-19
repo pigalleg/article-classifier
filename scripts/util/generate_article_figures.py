@@ -342,49 +342,103 @@ def build_era_shift_figure(era_shift: pd.DataFrame) -> px.line:
         symbol="PRP_Name",
         color="Change_direction",
         color_discrete_map={"-": LOSS, "+": GAIN},
-        facet_col="Threshold",
+        facet_row="Threshold",
+        facet_row_spacing=0.09,
         markers=True,
         category_orders={
             "Threshold": list(THRESHOLDS),
             "PRP_Name": PROGRAMME_ORDER,
         },
     )
-    figure.update_xaxes(matches=None, ticksuffix="%", title=None)
-    figure.update_yaxes(title=None)
+    figure.update_traces(marker=dict(symbol="circle"))
+    figure.update_xaxes(
+        matches=None,
+        showticklabels=True,
+        ticksuffix="%",
+        nticks=8,
+        title=None,
+    )
+    figure.update_yaxes(
+        title=None,
+        tickmode="array",
+        tickvals=PROGRAMME_ORDER,
+        ticktext=[
+            programme.replace("System Services", "System<br>Services")
+            for programme in PROGRAMME_ORDER
+        ],
+    )
     figure.update_layout(
-        width=FIGURE_DIM[0] * 2,
-        height=FIGURE_DIM[1],
+        width=FIGURE_DIM[0],
+        height=FIGURE_DIM[1] * 2,
         title=dict(text=f"Programme coverage shift, {ERA_LABELS[0]} to {ERA_LABELS[-1]}"),
         showlegend=False,
-        margin=dict(l=4, r=34, t=54, b=64),
+        margin=dict(l=4, r=34, t=54, b=54),
     )
-    for annotation in figure.layout.annotations:
-        annotation.text = annotation.text.split("=", 1)[-1]
-    for column, threshold in enumerate(THRESHOLDS, start=1):
-        for _, row in era_shift[era_shift["Threshold"] == threshold].iterrows():
-            figure.add_annotation(
-                x=row[ERA_LABELS[-1]],
-                y=row["PRP_Name"],
-                text=f"<b>{row['Change']:+.1f} pp</b>",
-                xshift=20,
-                xanchor="left",
-                yanchor="middle",
-                showarrow=False,
-                font=dict(color=LOSS if row["Change"] >= 0 else GAIN, size=10),
-                row=1,
-                col=column,
-            )
     figure.add_annotation(
-        x=0,
-        y=-0.15,
+        x=-0.05,
+        y=-0.05,
         xref="paper",
         yref="paper",
-        text="Three-year pools (approximately 1,400-1,700 papers each), so the move clears single-year sampling noise",
+        text="Three-year pools (≈1,400-1,700 papers each) for clearing single-year sampling noise.",
         showarrow=False,
         xanchor="left",
         yanchor="top",
         font=dict(color=INK_MUTED, size=10),
     )
+
+    facet_axes = {}
+    for trace in figure.data:
+        threshold = trace.hovertemplate.split("Threshold=", 1)[1].split("<br>", 1)[0]
+        facet_axes.setdefault(threshold, (trace.xaxis, trace.yaxis))
+
+    for annotation in figure.layout.annotations:
+        if annotation.text.startswith("Threshold="):
+            threshold = annotation.text.split("=", 1)[-1]
+            xaxis, yaxis = facet_axes[threshold]
+            annotation.update(
+                text=threshold,
+                x=0.5,
+                y=1.0,
+                xref=f"{xaxis} domain",
+                yref=f"{yaxis} domain",
+                xanchor="center",
+                yanchor="bottom",
+                textangle=0,
+            )
+
+    for threshold in THRESHOLDS:
+        xaxis, yaxis = facet_axes[threshold]
+        for _, row in era_shift[era_shift["Threshold"] == threshold].iterrows():
+            change = row["Change"]
+            colour = LOSS if change >= 0 else GAIN
+            figure.add_annotation(
+                x=row[ERA_LABELS[-1]],
+                y=row["PRP_Name"],
+                ax=row[ERA_LABELS[0]],
+                ay=row["PRP_Name"],
+                xref=xaxis,
+                yref=yaxis,
+                axref=xaxis,
+                ayref=yaxis,
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1.2,
+                arrowwidth=2,
+                arrowcolor=colour,
+            )
+            midpoint = (row[ERA_LABELS[0]] + row[ERA_LABELS[-1]]) / 2
+            figure.add_annotation(
+                x=midpoint,
+                y=row["PRP_Name"],
+                xref=xaxis,
+                yref=yaxis,
+                text=f"<b>{change:+.1f} pp</b>",
+                yshift=10,
+                xanchor="center",
+                yanchor="bottom",
+                showarrow=False,
+                font=dict(color=colour, size=10),
+            )
     return figure
 
 
