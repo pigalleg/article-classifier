@@ -18,7 +18,7 @@ def test_run_postprocessing_targets_the_completed_benchmark_run(monkeypatch, tmp
 
     command, _, _, check = calls[0]
     assert command[-4:] == ["--input-root", str(run_dir.parent), "--run-id", "run-123"]
-    assert command[1].endswith("scripts/run_postprocessing_affinity_benchmark.py")
+    assert Path(command[1]).as_posix().endswith("scripts/run_postprocessing_affinity_benchmark.py")
     assert check is True
 
 

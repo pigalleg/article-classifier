@@ -1,7 +1,5 @@
 # IEEE Classifier
 
-!test by Andrey! is Readme ready? Logo...?
-
 Project to classify IEEE abstracts against Research Agenda (RA) questions using embeddings and LLM reasoning.
 
 ## Data Management

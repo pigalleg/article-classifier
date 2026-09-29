@@ -255,7 +255,7 @@ def build_coverage_figure(coverage_plot_data: pd.DataFrame) -> px.area:
             ignore_index=True,
         )
         .groupby(["PRP_Name", "Threshold"], observed=True)
-        .agg(Papers=("Papers", "sum"), Papers_Total=("Papers_Total", "sum"))
+        .agg(Papers=("Papers", "sum"), Papers_Total=("Papers_Total", "first"))
         .assign(Share=lambda frame: 100 * frame["Papers"] / frame["Papers_Total"])
     )
     figure = px.area(
