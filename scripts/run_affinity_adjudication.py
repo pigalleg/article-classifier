@@ -213,7 +213,7 @@ def _load_runtime_llm_config(settings: dict[str, Any]) -> tuple[str, int, Option
     return str(effective_model), effective_rpm, effective_base_url, effective_api_key
 
 def _affinity_level_fixed(score):
-    return _canonical_affinity_level_fixed(score)
+    return _canonical_affinity_level_fixed(score, six_bands=True)
 
 def _compute_pair_stats(merged_df: pd.DataFrame, target_id_col: str, target_text_col: str) -> pd.DataFrame:
     base_cols = [
@@ -275,7 +275,7 @@ def compute_pair_stats(merged_df: pd.DataFrame, target_id_col: str, target_text_
     return _compute_pair_stats(merged_df, target_id_col=target_id_col, target_text_col=target_text_col)
 
 def affinity_level_fixed(score):
-    return _canonical_affinity_level_fixed(score)
+    return _canonical_affinity_level_fixed(score, six_bands=True)
 
 
 def _select_divergent_pairs(
