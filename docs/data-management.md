@@ -18,14 +18,13 @@ not inputs to supported workflows.
 
 | Raw source | Processed output | Generator | Active consumers | Notes |
 |---|---|---|---|---|
-| `data/raw/TEC_2000_2026_ieee.csv`, `TEMPR_2023_2026_ieee.csv`, `TPWRD_2000_2026_ieee.csv`, `TPWRS_2000_2026_ieee.csv`, `TSG_2010_2026_ieee.csv`, `TSTE_2010_2026_ieee.csv` | `data/processed/abstracts_cleaned.csv` | `scripts/util/prepare_ra_and_ieee_data.py` | `run_affinity_evaluation.py`, `run_classification.py`, `run_keyword_clustering.py`, `populate_few_shot_ra_from_ministral_examples.py`, notebooks 09 and 13 | The six journal exports are merged, identifiers are normalized, and abstracts/keywords are cleaned. |
-| `data/raw/Research Agenda 2025.xlsx`, `main` sheet | `data/processed/ra_questions_cleaned.csv` | `scripts/util/prepare_ra_and_ieee_data.py` | `run_affinity_evaluation.py`, `run_classification.py`, `run_keyword_clustering.py`, `populate_few_shot_ra_from_ministral_examples.py` | RA question identifiers and cleaned question text. |
+| `data/raw/TEC_2000_2026_ieee.csv`, `TEMPR_2023_2026_ieee.csv`, `TPWRD_2000_2026_ieee.csv`, `TPWRS_2000_2026_ieee.csv`, `TSG_2010_2026_ieee.csv`, `TSTE_2010_2026_ieee.csv` | `data/processed/abstracts_cleaned.csv` | `scripts/util/prepare_ra_and_ieee_data.py` | `run_affinity_evaluation.py`, `populate_few_shot_ra_from_ministral_examples.py`, notebooks 09 and 13 | The six journal exports are merged, identifiers are normalized, and abstracts/keywords are cleaned. |
+| `data/raw/Research Agenda 2025.xlsx`, `main` sheet | `data/processed/ra_questions_cleaned.csv` | `scripts/util/prepare_ra_and_ieee_data.py` | `run_affinity_evaluation.py`, `populate_few_shot_ra_from_ministral_examples.py` | RA question identifiers and cleaned question text. |
 | `data/raw/Research Agenda 2025.xlsx`, `Primary Research Programme` sheet | `data/processed/primary_programmes.csv` | `scripts/util/prepare_ra_and_ieee_data.py` | `run_affinity_evaluation.py`, `run_affinity_benchmark.py` | PRP names and descriptions for PRP affinity scoring. |
 | `data/raw/Abstracts Evaluation Template - Mark OM.xlsm` | `data/processed/affinity_calibration/<run_id>/calibration_abstract_question_affinities.csv` | `scripts/util/generate_affinity_calibration_from_excel.py` | `scripts/util/select_cases_by_levels.py`; notebooks 10, 11, 12, 14, and 15 | Expert annotation export. The default source workbook is Mark OM. |
 | `data/raw/Abstracts Evaluation Template - Charlie S.xlsx` | `data/processed/affinity_calibration/<run_id>/calibration_abstract_question_affinities.csv` | `scripts/util/generate_affinity_calibration_from_excel.py` with explicit input/output options | `scripts/util/select_cases_by_levels.py`; calibration notebooks | Expert annotation export. |
 | `data/raw/Abstracts Evaluation Template - Janusz.xlsx` | `data/processed/affinity_calibration/<run_id>/calibration_abstract_question_affinities.csv` | `scripts/util/generate_affinity_calibration_from_excel.py` with explicit input/output options | `scripts/util/select_cases_by_levels.py` | Expert annotation export. |
 | `data/raw/Abstracts Evaluation Template - Batch 1.xlsx` | No processed CSV | `scripts/util/populate_few_shot_ra_from_excel_evaluations.py` | The same utility | Adds reviewed examples to the RA few-shot prompt YAML. |
-| `data/processed/abstracts_cleaned.csv` | `data/processed/keyword_clusters.csv` | `scripts/run_keyword_clustering.py` | No active consumer identified | Exploratory keyword-clustering output. |
 
 ## Curated and Derived Processed Data
 
@@ -34,7 +33,6 @@ not inputs to supported workflows.
 | `data/processed/ra_grouping_ra2025.csv` | Manually curated RA-to-programme mapping | Analysis utilities and notebooks 01, 02, 09, 16, and 17 | Git. It defines the canonical programme ordering. |
 | `notebooks/input/ra_extended_grouping_ra2025.csv` | Notebook-specific RA-to-programme mapping | Archived notebook 09 | Git. The file is colocated with its exploratory notebook input rather than the active processed-data pipeline. |
 | `data/processed/manifest_tpwrs_2010_2026_by_year.csv` | Manually curated benchmark manifest | Manifest-driven benchmark workflows | Git. It defines reproducible year slices. |
-| `data/processed/manifest_tpwrs_2020_2026_by_year.csv` | Referenced by the README and manifest-runner examples | Expected by those examples | Restore or update the references before relying on the example: the file was absent in the September 2026 audit. |
 | `data/processed/abstracts_cleaned_benchmark_v1.csv` | Curated corpus subset | Benchmark runs when selected | Git if it is the frozen study population; document its selection rule. |
 | `data/processed/abstracts_cleaned_calibration_v1.csv` | Curated corpus subset | Calibration workflow | Git if it is the frozen study population; document its selection rule. |
 | `data/processed/cache/ra_embeddings_*.npy` | Runtime embedding cache keyed by RA text | `RAClassifier` | Ignore and regenerate. |
